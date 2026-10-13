@@ -15,11 +15,11 @@ const ar = {
     menu: "القائمة",
     language: "English",
   },
-  hero: {
-    eyebrow: "تحليل الموقع قبل التصميم · الرياض",
-    titleBefore: "اعرف",
-    titleHighlight: "أرضك",
-    titleAfter: "قبل أن ترسم أول خط",
+ hero: {
+  eyebrow: "تحليل الموقع قبل التصميم · الرياض",
+  titleBefore: "معمار،",
+  titleHighlight: "نقرأ الأرض",
+  titleAfter: "لنصنع القرار",
     sub: "منصة ذكاء اصطناعي تحلّل الشمس والظل والرياح ومحيط قطعتك السكنية في الرياض، وتعطيك توصيات تصميمية تراعي كود البناء السعودي.",
     cta: "ابدأ تحليل قطعتك",
     ctaSecondary: "شاهد كيف تعمل",
@@ -33,7 +33,7 @@ const ar = {
     scroll: "اكتشف المزيد",
   },
   sources: {
-    label: "مبنية على بيانات مفتوحة وموثوقة",
+    label: "مبنية على بيانات موثوقة",
     items: [
       "OpenStreetMap",
       "PVGIS",
@@ -52,7 +52,7 @@ const ar = {
     title: "كل ما تحتاجه لتفهم قطعتك",
     sub: "من اختيار القطعة إلى التقرير النهائي، في مكان واحد.",
     plot: {
-      title: "اختر قطعتك بنقرة",
+      title: "اختر قطعتك بضغطة زر",
       text: "انقر على الخريطة أو أدخل الإحداثيات، وتبدأ المنصة بجمع بيانات الموقع تلقائيًا.",
     },
     env: {
@@ -82,7 +82,7 @@ const ar = {
       architect: "معماري",
     },
     report: {
-      title: "تقارير بالعربي والإنجليزي",
+      title: "تقارير تفصيلية",
       text: "صدّر نتائجك كملف PDF جاهز للمشاركة.",
     },
   },
@@ -90,10 +90,10 @@ const ar = {
     kicker: "كيف تعمل",
     title: "من القطعة إلى القرار في أربع خطوات",
     steps: [
-      { title: "اختر القطعة", text: "انقر على الخريطة أو أدخل الإحداثيات." },
+      { title: "حدد القطعة", text: "انقر على الخريطة أو أدخل الإحداثيات." },
       {
-        title: "نجمع بيانات الموقع",
-        text: "الشمس والرياح والمباني المجاورة والاشتراطات النظامية، من مصادر مفتوحة.",
+        title: "العمل على جمع بيانات الموقع",
+        text: "الشمس والرياح والمباني المجاورة والاشتراطات النظامية، من مصادر موثوقة.",
       },
       {
         title: "نحلّل ونولّد التوصيات",
@@ -101,7 +101,7 @@ const ar = {
       },
       {
         title: "نراجعها نظاميًا ونعرضها لك",
-        text: "محرك قواعد يتأكد من توافقها مع الكود قبل عرضها في لوحة النتائج.",
+        text: "محرك قواعد يتأكد من توافقها مع كود البناء السعودي قبل عرضها في لوحة النتائج.",
       },
     ],
   },
@@ -149,7 +149,7 @@ const ar = {
     title: "نشرح لك كل قرار",
     items: [
       {
-        title: "بيانات مفتوحة وموثوقة",
+        title: "بيانات موثوقة",
         text: "نعتمد على مصادر معروفة للمناخ والخرائط والمباني، ونوثّقها.",
       },
       {
@@ -162,7 +162,7 @@ const ar = {
       },
     ],
     disclaimer:
-      "معمار أداة دعم قرار مبكر، ولا تغني عن المعماري المرخّص ولا عن موافقات البلدية.",
+       "معمار منصة ذكية متكاملة لتحليل المواقع السكنية وتقديم توصيات تصميمية مبنية على بيانات الموقع، ولا تغني عن المعماري المرخّص أو الموافقات الرسمية.",
   },
   faq: {
     kicker: "الأسئلة",
@@ -182,7 +182,7 @@ const ar = {
       },
       {
         q: "من أين تأتي البيانات؟",
-        a: "من مصادر مفتوحة للخرائط والمباني والمناخ، إضافة إلى اشتراطات كود البناء السعودي.",
+        a: "من مصادر موثوقه للخرائط والمباني والمناخ، إضافة إلى اشتراطات كود البناء السعودي.",
       },
       {
         q: "هل تغني عن المعماري أو موافقات البلدية؟",
@@ -224,9 +224,9 @@ const en: LandingCopy = {
   },
   hero: {
     eyebrow: "Site analysis before design · Riyadh",
-    titleBefore: "Know your",
-    titleHighlight: "land",
-    titleAfter: "before you draw the first line",
+    titleBefore: "MAAMAR,",
+    titleHighlight: "We Read the Land",
+    titleAfter: "to Shape the Decision",
     sub: "An AI platform that analyzes sun, shade, wind and the surroundings of your residential plot in Riyadh, and gives you design recommendations that respect the Saudi Building Code.",
     cta: "Analyze your plot",
     ctaSecondary: "See how it works",
@@ -240,7 +240,7 @@ const en: LandingCopy = {
     scroll: "Discover more",
   },
   sources: {
-    label: "Built on open, trusted data",
+    label: "Built on trusted data",
     items: [
       "OpenStreetMap",
       "PVGIS",
@@ -259,7 +259,7 @@ const en: LandingCopy = {
     title: "Everything you need to understand your plot",
     sub: "From choosing the plot to the final report, in one place.",
     plot: {
-      title: "Pick your plot in one click",
+      title: "Select your plot with one click",
       text: "Click on the map or enter coordinates, and the platform starts collecting site data automatically.",
     },
     env: {
@@ -289,7 +289,7 @@ const en: LandingCopy = {
       architect: "Architect",
     },
     report: {
-      title: "Reports in Arabic and English",
+      title: "Detailed Reports",
       text: "Export your results as a PDF ready to share.",
     },
   },
@@ -297,10 +297,10 @@ const en: LandingCopy = {
     kicker: "How it works",
     title: "From plot to decision in four steps",
     steps: [
-      { title: "Choose the plot", text: "Click on the map or enter coordinates." },
+      { title: "Select the plot", text: "Click on the map or enter coordinates." },
       {
-        title: "We collect site data",
-        text: "Sun, wind, neighboring buildings and regulations, from open sources.",
+        title: "Collecting Site Data",
+        text: "Sun, wind, neighboring buildings and regulations, from trusted sources.",
       },
       {
         title: "We analyze and generate recommendations",
@@ -308,7 +308,7 @@ const en: LandingCopy = {
       },
       {
         title: "We check them against the code and show you",
-        text: "A rule engine confirms they comply with the code before they appear on your results dashboard.",
+        text: "A rule engine checks their compliance with the Saudi Building Code before they appear on your results dashboard.",
       },
     ],
   },
@@ -360,7 +360,7 @@ const en: LandingCopy = {
     title: "We explain every decision",
     items: [
       {
-        title: "Open, trusted data",
+        title: "Trusted Data",
         text: "We rely on well-known sources for climate, maps and buildings, and we document them.",
       },
       {
@@ -373,7 +373,7 @@ const en: LandingCopy = {
       },
     ],
     disclaimer:
-      "Mi'mar is an early decision-support tool. It does not replace a licensed architect or municipal approvals.",
+      "MAAMAR is an integrated intelligent platform for residential site analysis and data-driven design recommendations. It does not replace a licensed architect or official approvals.",
   },
   faq: {
     kicker: "FAQ",
@@ -393,7 +393,7 @@ const en: LandingCopy = {
       },
       {
         q: "Where does the data come from?",
-        a: "From open sources for maps, buildings and climate, plus the requirements of the Saudi Building Code.",
+        a: "From trusted sources for maps, buildings and climate, plus the requirements of the Saudi Building Code.",
       },
       {
         q: "Does it replace an architect or municipal approvals?",

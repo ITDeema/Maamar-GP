@@ -32,7 +32,8 @@ const ar = {
   "role.homeowner": "مالك منزل",
   "role.architect": "معماري",
 
-  "nav.saved": "المحفوظات",
+  "nav.saved": "المفضلات",
+  "nav.home": "الصفحة الرئيسية",
   "nav.history": "السجل",
   "nav.profile": "البروفايل",
   "profile.myAccount": "حسابي",
@@ -144,7 +145,8 @@ const en: Record<TranslationKey, string> = {
   "role.homeowner": "Homeowner",
   "role.architect": "Architect",
 
-  "nav.saved": "Saved",
+  "nav.saved": "Favorites",
+  "nav.home": "Home",
   "nav.history": "History",
   "nav.profile": "Profile",
   "profile.myAccount": "My Account",
