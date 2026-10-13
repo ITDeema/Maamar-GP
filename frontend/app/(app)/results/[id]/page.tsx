@@ -84,7 +84,7 @@ function ResultsContent() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
-  const [message, setMessage] = useState<Message>(null);
+ 
 
   // The indicators load on their own, so a failure only affects their section.
   useEffect(() => {
@@ -155,12 +155,7 @@ function ResultsContent() {
 
   function handleSave() {
     if (!result) return;
-    const next = !result.saved;
-    setSaved(result.id, next);
-    setMessage({
-      tone: next ? "success" : "info",
-      text: next ? fill(c.messages.saved, { name: result.name }) : c.messages.unsaved,
-    });
+    setSaved(result.id, !result.saved);
   }
 
   function commitName() {
@@ -262,11 +257,7 @@ function ResultsContent() {
 
       </div>
 
-      {message && (
-        <div className="mt-4">
-          <StatusMessage tone={message.tone}>{message.text}</StatusMessage>
-        </div>
-      )}
+      
 
       {result.parcelNote && (
         <p className="mt-4 rounded-card border border-caution-500/40 bg-caution-50 p-4 text-sm leading-7 text-caution-700">
@@ -335,7 +326,9 @@ function ResultsContent() {
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.15fr_1fr]">
         <DecisionList role={role} indicators={ready} constraints={constraints} />
-        <ConstraintsCard constraints={constraints} />
+        <div className="self-start">
+          <ConstraintsCard constraints={constraints} />
+       </div>
       </div>
 
       <p className="mt-8 text-xs leading-6 text-navy-900/70">{c.disclaimer}</p>

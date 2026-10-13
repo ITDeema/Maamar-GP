@@ -1,5 +1,5 @@
 @AGENTS.md
-# Mi'mar frontend rules
+# MAAMAR frontend rules
 
 ## Colors and style
 - Use only the colors, radii and shadows defined in app/globals.css. Never hardcode hex colors or pixel sizes.

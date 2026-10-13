@@ -4,6 +4,7 @@ import Link from "next/link";
 import BrandLogo from "@/components/BrandLogo";
 import SaduBand from "@/components/landing/SaduBand";
 import { useT } from "@/lib/i18n";
+import { usePathname } from "next/navigation";
 
 export default function AuthLayout({
   children,
@@ -11,6 +12,9 @@ export default function AuthLayout({
   children: ReactNode;
 }) {
   const { lang } = useT();
+  const pathname = usePathname();
+
+  const backHref = pathname === "/forgot-password" ? "/login" : "/";
   return (
     
 
@@ -38,7 +42,9 @@ export default function AuthLayout({
           </Link>
 
           <p className="text-sm text-white/80">
-            نقرأ الأرض لـنصنع الـقرار
+           {lang === "ar"
+            ? "نقرأ الأرض لنصنع القرار"
+            : "We Read the Land to Shape the Decision"}
           </p>
 
           <div
@@ -54,7 +60,7 @@ export default function AuthLayout({
           
        <div className="w-full max-w-md">
          <Link
-           href="/"
+           href={backHref}
            className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-navy-900/70 transition-colors hover:text-gold-700"
            >
             <svg
@@ -69,7 +75,7 @@ export default function AuthLayout({
              >
               <path d="M19 12H5m7-7-7 7 7 7" />
            </svg>
-           {lang === "ar" ? "العودة للرئيسية" : "Back to Home"}
+           {lang === "ar" ? "العودة" : "Back"}
           </Link> 
 
           {children}
