@@ -235,34 +235,31 @@ function ResultsContent() {
               </bdi>
             </span>
           </p>
-        </div>
+        </div> 
 
-        <div className="flex flex-wrap gap-3">
-          <Link href="/" className={linkButton}>
-            {c.actions.home}
-          </Link>
-          <Button
-            variant="secondary"
-            onClick={handleSave}
-            aria-pressed={result.saved}
-            className="inline-flex items-center gap-2"
-          >
-            <BookmarkIcon filled={result.saved} />
-            {result.saved ? c.actions.saved : c.actions.save}
-          </Button>
-          <Button
-            disabled={report === null}
-            title={report === null ? c.actions.exportWait : undefined}
-            onClick={() => setExportOpen(true)}
-            className="inline-flex items-center gap-2"
-          >
-            <ExportIcon />
-            {c.actions.export}
-          </Button>
-          <Link href="/select-plot" className={linkButton}>
-            {c.actions.newAnalysis}
-          </Link>
-        </div>
+        
+          <div className="flex flex-wrap gap-3">
+           <Button
+             variant="secondary"
+    onClick={handleSave}
+    aria-pressed={result.saved}
+    className="inline-flex items-center gap-2"
+             >
+             <BookmarkIcon filled={result.saved} />
+              {result.saved ? c.actions.saved : c.actions.save}
+            </Button>
+
+            <Button
+             disabled={report === null}
+             title={report === null ? c.actions.exportWait : undefined}
+             onClick={() => setExportOpen(true)}
+             className="inline-flex items-center gap-2"
+              >
+             <ExportIcon />
+             {c.actions.export}
+            </Button>
+         </div>
+
       </div>
 
       {message && (

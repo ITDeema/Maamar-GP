@@ -20,7 +20,7 @@ const ar = {
     errOutside: "هذا الموقع خارج مدينة الرياض. اختر قطعة داخل الرياض.",
     found: "تم تحديد الموقع على الخريطة.",
     plotTitle: "القطعة المحددة",
-    optionalInfoTitle: "معلومات إضافية (اختياري)",
+    optionalInfoTitle: "تعديل على المعلومات الظاهرة (اختياري)",
     optionalInfoHint: "أضف معلومات عن الأرض والمبنى المخطط له للمساعدة في تحسين دقة التحليل.",
     optionalAreaLabel: "مساحة الأرض (م²) - اختياري",
     expectedHeightLabel: "الارتفاع المتوقع للمبنى (م) - اختياري",
@@ -90,7 +90,7 @@ const en: PlotCopy = {
     found: "The location was found on the map.",
     plotTitle: "Selected plot",
     
-    optionalInfoTitle: "Additional Information (Optional)",
+    optionalInfoTitle: "Modify Displayed Information (Optional)",
     optionalInfoHint: "Add details about your plot and planned building to help improve analysis accuracy.",
     optionalAreaLabel: "Plot Area (m²) - Optional",
     expectedHeightLabel: "Expected Building Height (m) - Optional",

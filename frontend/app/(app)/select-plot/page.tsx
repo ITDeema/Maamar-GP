@@ -137,8 +137,13 @@ export default function SelectPlotPage() {
 
 
   const selected = point
-    ? { point, width: plot?.width ?? 20, depth: plot?.depth ?? 24 }
-    : null;
+  ? {
+      point,
+      width: plot?.width ?? 20,
+      depth: plot?.depth ?? 24,
+      rotation: 0,
+    }
+  : null;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
@@ -192,6 +197,38 @@ export default function SelectPlotPage() {
 
             {message && <StatusMessage tone={message.tone}>{message.text}</StatusMessage>}
           </Card>
+                    <Card>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-bold">{c.plotTitle}</h2>
+              {USE_MOCK_DATA && plot && <Badge tone="caution">{c.mockTag}</Badge>}
+            </div>
+            {!point ? (
+              <p className="text-sm text-navy-900/70">{c.plotEmpty}</p>
+            ) : (
+              <dl className="grid gap-2.5 text-sm">
+                <Row
+                  label={c.coordinates}
+                  value={<bdi dir="ltr">{formatCoordinates(point)}</bdi>}
+                />
+                {plot ? (
+                  <>
+                    <Row
+                      label={c.area}
+                      value={
+                        <bdi>
+                          {plot.area} {c.areaUnit}
+                        </bdi>
+                      }
+                    />
+                    <Row label={c.neighborhood} value={plot.neighborhood} />
+                    <Row label={c.orientation} value={c.directions[plot.orientation]} />
+                  </>
+                ) : (
+                  <p className="text-navy-900/70">{c.plotLoading}</p>
+                )}
+              </dl>
+            )}
+          </Card>
 
           
           <Card className="flex flex-col gap-4">
@@ -231,38 +268,7 @@ export default function SelectPlotPage() {
           </Card>
 
 
-          <Card>
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-bold">{c.plotTitle}</h2>
-              {USE_MOCK_DATA && plot && <Badge tone="caution">{c.mockTag}</Badge>}
-            </div>
-            {!point ? (
-              <p className="text-sm text-navy-900/70">{c.plotEmpty}</p>
-            ) : (
-              <dl className="grid gap-2.5 text-sm">
-                <Row
-                  label={c.coordinates}
-                  value={<bdi dir="ltr">{formatCoordinates(point)}</bdi>}
-                />
-                {plot ? (
-                  <>
-                    <Row
-                      label={c.area}
-                      value={
-                        <bdi>
-                          {plot.area} {c.areaUnit}
-                        </bdi>
-                      }
-                    />
-                    <Row label={c.neighborhood} value={plot.neighborhood} />
-                    <Row label={c.orientation} value={c.directions[plot.orientation]} />
-                  </>
-                ) : (
-                  <p className="text-navy-900/70">{c.plotLoading}</p>
-                )}
-              </dl>
-            )}
-          </Card>
+
 
           <Button fullWidth disabled={!point || !plot} onClick={start}>
             {c.start}
