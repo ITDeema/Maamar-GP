@@ -111,13 +111,15 @@ const ar = {
   "rename.label": "اسم النتيجة",
   "rename.errorRequired": "أدخل اسمًا للنتيجة",
 
-  "saved.title": "القطع المحفوظة",
-  "saved.subtitle": "النتائج التي حفظتها للرجوع لها لاحقًا",
-  "saved.empty": "لا توجد نتائج محفوظة بعد",
-  "saved.emptyHint": "احفظ نتيجة من لوحة النتائج لتظهر هنا",
-  "saved.remove": "إزالة من المحفوظات",
-  "saved.removeBody": "ستُزال «{name}» من المحفوظات، وتبقى في السجل.",
-  "saved.removeConfirm": "إزالة",
+  
+ "saved.title": "المفضلات",
+ "saved.subtitle": "النتائج التي أضفتها إلى المفضلات للرجوع إليها لاحقًا",
+ "saved.empty": "لا توجد نتائج في المفضلات بعد",
+ "saved.emptyHint": "أضف نتيجة إلى المفضلات من لوحة النتائج لتظهر هنا",
+ "saved.remove": "إزالة من المفضلات",
+ "saved.removeBody": "ستُزال «{name}» من المفضلات، وتبقى في السجل.",
+ "saved.removeConfirm": "إزالة",
+
 
   "history.title": "سجل التحليلات",
   "history.subtitle": "جميع عمليات تحليل المواقع التي أجريتها",
@@ -224,13 +226,14 @@ const en: Record<TranslationKey, string> = {
   "rename.label": "Result name",
   "rename.errorRequired": "Enter a name for the result",
 
-  "saved.title": "Saved plots",
-  "saved.subtitle": "Results you saved to come back to later",
-  "saved.empty": "No saved results yet",
-  "saved.emptyHint": "Save a result from the results dashboard and it will appear here",
-  "saved.remove": "Remove from saved",
-  "saved.removeBody": "“{name}” will be removed from your saved list. It stays in your history.",
-  "saved.removeConfirm": "Remove",
+  
+ "saved.title": "Favorites",
+ "saved.subtitle": "Results you added to your favorites",
+ "saved.empty": "No favorites yet",
+ "saved.emptyHint": "Add a result to your favorites from the results dashboard and it will appear here",
+ "saved.remove": "Remove from favorites",
+ "saved.removeBody": "“{name}” will be removed from your favorites. It will remain in your history.",
+ "saved.removeConfirm": "Remove",
 
   "history.title": "Analysis history",
   "history.subtitle": "All the site analyses you have run",

@@ -36,9 +36,9 @@ const ar = {
     label: "مبنية على بيانات موثوقة",
     items: [
       "OpenStreetMap",
-      "PVGIS",
+      "EPW",
       "ERA5-Land",
-      "NASA POWER",
+      "ArcGIS",
       "GlobalBuildingAtlas",
       "كود البناء السعودي",
     ],
@@ -243,16 +243,16 @@ const en: LandingCopy = {
     label: "Built on trusted data",
     items: [
       "OpenStreetMap",
-      "PVGIS",
+      "EPW",
       "ERA5-Land",
-      "NASA POWER",
+      "ArcGIS",
       "GlobalBuildingAtlas",
       "Saudi Building Code",
     ],
   },
   manifesto: {
-    kicker: "Why Mi'mar?",
-    text: "Most of the decisions that shape a home's comfort and energy use are made in the first days of design, before any real analysis of the site exists. Mi'mar puts that analysis in your hands from the start.",
+    kicker: "Why MAAMAR?",
+    text: "Most of the decisions that shape a home's comfort and energy use are made in the first days of design, before any real analysis of the site exists. MAAMAR puts that analysis in your hands from the start.",
   },
   features: {
     kicker: "Features",
@@ -380,7 +380,7 @@ const en: LandingCopy = {
     title: "Frequently asked questions",
     items: [
       {
-        q: "What is Mi'mar?",
+        q: "What is MAAMAR?",
         a: "A web platform that analyzes the environmental and contextual characteristics of a residential plot before the design stage, and provides design recommendations with indicators that explain them.",
       },
       {
@@ -397,7 +397,7 @@ const en: LandingCopy = {
       },
       {
         q: "Does it replace an architect or municipal approvals?",
-        a: "No. Mi'mar is an early decision-support tool. The final design and approvals remain the responsibility of specialists and official authorities.",
+        a: "No. MAAMAR is an early decision-support tool. The final design and approvals remain the responsibility of specialists and official authorities.",
       },
       {
         q: "Are reports available in Arabic and English?",
@@ -416,7 +416,7 @@ const en: LandingCopy = {
     links: "Links",
     account: "Account",
     credit: "Graduation project · Information Technology Department · King Saud University",
-    rights: "© 2026 Mi'mar",
+    rights: "© 2026 MAAMAR",
   },
 };
 

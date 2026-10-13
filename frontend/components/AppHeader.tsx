@@ -8,23 +8,17 @@ import { useT } from "@/lib/i18n";
 import type { TranslationKey } from "@/lib/i18n";
 
 const links: { href: string; key: TranslationKey }[] = [
+  { href: "/home", key: "nav.home" },
   { href: "/saved", key: "nav.saved" },
   { href: "/history", key: "nav.history" },
 ];
+
 
 export default function AppHeader() {
   const { t } = useT();
   const pathname = usePathname();
 
-  const isHome = pathname === "/home";
-
-  const visibleLinks = [
-    ...(!isHome
-      ? [{ href: "/home", key: "nav.home" as TranslationKey }]
-      : []),
-    ...links.filter((link) => pathname !== link.href),
-  ];
-
+  
   return (
     <header className="border-b border-navy-900/15 bg-white">
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
@@ -33,19 +27,32 @@ export default function AppHeader() {
           <span className="font-heading text-lg font-bold">
             {t("brand.name")}
           </span>
-        </Link>
+        </Link> 
 
-        <nav className="flex items-center gap-6 text-sm font-semibold">
-          {visibleLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="flex h-16 items-center border-b-2 border-transparent text-navy-900/70 hover:text-navy-900"
-            >
-              {t(link.key)}
-            </Link>
-          ))}
-        </nav>
+        
+<nav className="flex items-center gap-6 text-sm font-semibold">
+  {links.map((link) => {
+    const isActive =
+      pathname === link.href ||
+      pathname.startsWith(`${link.href}/`);
+
+    return (
+      <Link
+        key={link.href}
+        href={link.href}
+        aria-current={isActive ? "page" : undefined}
+        className={`flex h-16 items-center border-b-2 transition-colors ${
+          isActive
+            ? "border-gold-500 text-navy-900"
+            : "border-transparent text-navy-900/70 hover:text-navy-900"
+        }`}
+      >
+        {t(link.key)}
+      </Link>
+    );
+  })}
+</nav>
+
 
         <Link
           href="/profile"
