@@ -102,13 +102,14 @@ npm run lint    # check the code with ESLint
 ```
 
 ## 👥 Team
-| Name | Role | GitHub |
-|---|---|---|
-| `<Name>` | `<Role>` | [@username](https://github.com/username) |
-| `<Name>` | `<Role>` | [@username](https://github.com/username) |
-| `<Name>` | `<Role>` | [@username](https://github.com/username) |
+| Name | GitHub |
+|---|---|
+| `<Deema Alquwaei>` | [@username](https://github.com/username) |
+| `<Renad Alqahtani>` | [@username](https://github.com/username) |
+| `<Jana Aldakheel>` | [@username](https://github.com/username) |
+| `<Linah Alsamari>` | [@lin-010](https://github.com/username) |
 
-**Supervisor:** `<Dr. Name>`
+**Supervisor:** `<Dr. Naila Alhassoun>`
 
 ## 📄 License
 Developed as an academic project at King Saud University. All rights reserved by the project team.
