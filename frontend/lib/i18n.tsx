@@ -33,7 +33,7 @@ const ar = {
   "role.architect": "معماري",
 
   "nav.saved": "المفضلات",
-  "nav.home": "الصفحة الرئيسية",
+  "nav.home": "الرئيسية",
   "nav.history": "السجل",
   "nav.profile": "البروفايل",
   "profile.myAccount": "حسابي",
