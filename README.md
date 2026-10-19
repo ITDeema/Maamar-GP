@@ -5,7 +5,7 @@
 King Saud University · Department of Information Technology · IT496 Project
 
 ## 📖 About The Project
-**Mammar** is a decision-support platform that automates and enhances the environmental and contextual analysis of residential land plots in Riyadh. It helps both architects and homeowners make informed, code-compliant, and environmentally optimized design decisions before construction begins.
+**Mammar** is a decision-support platform that automates and enhances the environmental and contextual analysis of residential land plots in Riyadh. It helps both architects and homeowners make informed, Saudi code compliant, and environmentally optimized design decisions before construction begins.
 
 The system evaluates site conditions such as solar exposure, wind patterns, shading, noise, and surrounding urban density, and presents them in a results dashboard with design recommendations.
 
