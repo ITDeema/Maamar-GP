@@ -1,26 +1,114 @@
-
-
 # Mammar (معمـار)
 
 > **An AI-Powered Environmental Site Analysis Web Platform for Residential Plots in Riyadh.**
 
-## 📖 About The Project
-**Maamar** is a comprehensive decision-support platform designed to automate and enhance the environmental and contextual analysis of residential land plots in Riyadh. By leveraging a hybrid analytical approach, Meyar empowers both architects and homeowners to make informed, code-compliant, and environmentally optimized design decisions before the construction phase begins.
+King Saud University · Department of Information Technology · IT496 Project
 
-The system evaluates various site conditions—such as solar exposure, wind patterns, topography, and surrounding urban density—and provides tailored design recommendations.
+## 📖 About The Project
+**Mammar** is a decision-support platform that automates and enhances the environmental and contextual analysis of residential land plots in Riyadh. It helps both architects and homeowners make informed, code-compliant, and environmentally optimized design decisions before construction begins.
+
+The system evaluates site conditions such as solar exposure, wind patterns, shading, noise, and surrounding urban density, and presents them in a results dashboard with design recommendations.
 
 ## 🚀 Core Features
-*   **Role-Based Dashboards:** Customized interfaces and data presentations tailored specifically for **Homeowners** (simplified insights) and **Architects** (advanced indicators, raw numerical data, and in-depth explanatory texts).
-*   **Hybrid Analysis Engine:**
-    *   **Data-Driven:** Machine Learning classifiers that map complex site conditions to optimal design classes.
-    *   **Knowledge-Driven:** A rule-based compliance layer ensuring all design recommendations adhere to local building codes and regulations.
-    *   **Model-Driven:** Physical and environmental calculations based on geospatial and climatic data.
-*   **Interactive Plot Selection:** Users can search for plots using specific coordinates or select them directly via an integrated interactive map of Riyadh.
-*   **History & Result Management:** Automatically saves analysis history, allowing users to rename, search, export reports, and manage their saved results efficiently.
+*   **Role-Based Dashboards:** Interfaces tailored to **Homeowners** (simplified insights) and **Architects** (advanced indicators and in-depth explanations).
+*   **Hybrid Analysis Engine:** Machine learning classifiers, a rule-based compliance layer for local building regulations, and physical and environmental calculations.
+*   **Interactive Plot Selection:** Select a plot on an interactive map of Riyadh.
+*   **History & Favorites:** Review past analyses, rename results, search, and keep favorites.
+*   **Bilingual Interface:** Arabic (right-to-left) and English (left-to-right).
+
+> The sections above describe the full platform. See **Project Status** for what this repository currently contains.
+
+## 📌 Project Status
+
+**Implemented in this repository (frontend)**
+- Landing page, login, sign-up, and forgot-password screens
+- Home screen and map-based plot selection (street and satellite views)
+- Analysis flow and results dashboard: indicators, gauges and level meters, wind card, facade picker, site diagrams (sun and wind, roads, land use), neighbourhood information, regulatory constraints, and design decisions
+- History and Saved pages, rename-result dialog, export dialog, profile page, and privacy policy
+- Arabic and English interface with right-to-left support
+
+**Not yet implemented**
+- Backend, database, and real authentication. Login and sign-up currently accept any valid-looking input and do not create real accounts.
+- Machine learning models and the rule-based compliance layer
+- Real plot lookup and analysis results. The app currently uses **sample (mock) data** for plots, analysis results, neighbourhood information, and the signed-in user (see `frontend/lib/analysis.ts`, `analysis-detail.ts`, `neighbourhood.ts`, `results.tsx`, and `user.ts`). A badge in the interface marks mock data.
 
 ## 🛠️ Technology Stack
-*   **Frontend:** [e.g., HTML, CSS, JavaScript, Bootstrap/Tailwind]
-*   **Backend:** [e.g., PHP / Python (Flask/Django) / Node.js]
-*   **Machine Learning:** Python (Scikit-learn, Pandas, NumPy)
-*   **Geospatial & APIs:** [e.g., Google Earth Engine, OpenStreetMap / Overpass API]
-*   **Database:** [e.g., MySQL / PostgreSQL]
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router), React 19, TypeScript |
+| Styling | Tailwind CSS 4 |
+| Maps | Leaflet, with OpenStreetMap and ArcGIS World Imagery tiles |
+| Map data | OpenStreetMap (Overpass API) for roads and land use |
+
+## ⚙️ Getting Started
+
+All commands run from the `frontend` folder.
+
+### Prerequisites
+- [Git](https://git-scm.com/)
+- [Node.js](https://nodejs.org/) 20.9 or later, with npm (required by Next.js 16)
+- An internet connection (map tiles and map data are loaded online)
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/<owner>/<repository>.git
+cd <repository>/frontend
+```
+
+### 2. Install dependencies
+```bash
+npm install
+```
+
+### 3. Run the application
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### 4. Try the main flow
+1. Open the landing page and go to **Sign up** or **Log in**. Use any valid-looking email and password, because authentication is not connected yet.
+2. On the home screen, choose to analyze a new plot.
+3. On the map, click a location to select a plot.
+4. Start the analysis and wait for the results dashboard.
+5. Open **History** or **Saved** from the header to see past results.
+
+The interface starts in Arabic. Use the language switch in the header to change to English.
+
+### Optional: analysis backend
+Some diagrams (sun path, nearby places, and buildings) request data from a separate backend, which is **not part of this repository**. By default the app looks for it at `http://127.0.0.1:8000`. Without it, the app still runs, but the sun path diagram cannot load and the nearby places and buildings layers are left out. To point the app at a different backend, create `frontend/.env.local` with:
+```
+NEXT_PUBLIC_API_URL=https://your-backend-url
+```
+
+### Other commands
+```bash
+npm run build   # create a production build
+npm start       # serve the production build
+npm run lint    # check the code with ESLint
+```
+
+## 📁 Project Structure
+```
+<repository>/
+├── README.md
+└── frontend/
+    ├── app/          # Pages: landing, (auth) login/sign-up, (app) home, select-plot, analyzing,
+    │                 #   results, history, saved, profile, privacy policy
+    ├── components/   # Shared UI, plus analysis/, diagrams/, landing/, and map/ components
+    ├── lib/          # Translations, mock data layer, API client, and map helpers
+    ├── public/       # Logo and static assets
+    └── package.json
+```
+
+## 👥 Team
+| Name | Role | GitHub |
+|---|---|---|
+| `<Name>` | `<Role>` | [@username](https://github.com/username) |
+| `<Name>` | `<Role>` | [@username](https://github.com/username) |
+| `<Name>` | `<Role>` | [@username](https://github.com/username) |
+
+**Supervisor:** `<Dr. Name>`
+
+## 📄 License
+Developed as an academic project at King Saud University. All rights reserved by the project team.
