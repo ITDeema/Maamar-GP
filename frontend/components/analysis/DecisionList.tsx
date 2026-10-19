@@ -41,14 +41,21 @@ export default function DecisionList({ role, indicators, constraints }: Decision
           ? [metric("radiation", "west")]
           : code === "shading"
             ? [metric("shade", "south"), metric("radiation", "south")]
-            : code === "garden"
-              ? [metric("shade", "east")]
-              : [
-                  {
-                    label: fill(c.constraints.setback, { facade: c.facade.names.north }),
-                    value: `${constraints.setbacks.north} m`,
-                  },
-                ];
+            
+         : code === "garden"
+            ? [metric("shade", "east")]
+         : code === "materials"
+           ? [
+             metric("radiation", "east"),
+               indicators
+          ? {
+              label: c.site.noise,
+              value: `${indicators.site.noise} dB`,
+            }
+          : null,
+      ]
+    : [];
+
     return chips.filter((chip): chip is Chip => chip !== null);
   }
 
