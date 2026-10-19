@@ -104,9 +104,9 @@ npm run lint    # check the code with ESLint
 ## 👥 Team
 | Name | GitHub |
 |---|---|
-| `<Deema Alquwaei>` | [@username](https://github.com/username) |
-| `<Renad Alqahtani>` | [@username](https://github.com/username) |
-| `<Jana Aldakheel>` | [@username](https://github.com/username) |
+| `<Deema Alquwaei>` | [@ITDeema](https://github.com/username) |
+| `<Renad Alqahtani>` | [@Renad10](https://github.com/username) |
+| `<Jana Aldakheel>` | [@Jana-D1](https://github.com/username) |
 | `<Linah Alsamari>` | [@lin-010](https://github.com/username) |
 
 **Supervisor:** `<Dr. Naila Alhassoun>`
