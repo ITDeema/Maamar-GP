@@ -5,7 +5,7 @@
 > **An AI-Powered Environmental Site Analysis Web Platform for Residential Plots in Riyadh.**
 
 ## 📖 About The Project
-**Meyar** is a comprehensive decision-support platform designed to automate and enhance the environmental and contextual analysis of residential land plots in Riyadh. By leveraging a hybrid analytical approach, Meyar empowers both architects and homeowners to make informed, code-compliant, and environmentally optimized design decisions before the construction phase begins.
+**Maamar** is a comprehensive decision-support platform designed to automate and enhance the environmental and contextual analysis of residential land plots in Riyadh. By leveraging a hybrid analytical approach, Meyar empowers both architects and homeowners to make informed, code-compliant, and environmentally optimized design decisions before the construction phase begins.
 
 The system evaluates various site conditions—such as solar exposure, wind patterns, topography, and surrounding urban density—and provides tailored design recommendations.
 
