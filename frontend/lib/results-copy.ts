@@ -83,36 +83,31 @@ const ar = {
     supporting: "المؤشرات الداعمة",
     items: {
       orientation: {
-        title: "اتجاه المبنى",
-        simple: "وجّه الجزء الأكبر من البيت نحو الشمال.",
-        detail:
-          "توجيه الكتلة الرئيسية نحو الشمال يقلل الإشعاع المباشر على الواجهات الأطول وقت الظهيرة، وهو الأنسب لمناخ الرياض الحار الجاف.",
-      },
+       title: "اتجاه المبنى",
+       simple: "وجّه الجزء الأكبر من البيت نحو الشمال.",
+       detail: "يوصى بتوجيه الكتلة الرئيسية نحو الشمال لتقليل التعرض المباشر للإشعاع الشمسي.",
+     },
       windows: {
-        title: "تصميم النوافذ",
-        simple: "قلّل الزجاج في الجهة الغربية.",
-        detail:
-          "اجعل نسبة الزجاج إلى الجدار منخفضة في الواجهة الغربية، واستخدم زجاجًا مزدوجًا معزولًا حراريًا لتخفيف حرارة ما بعد الظهر.",
+          title: "تصميم النوافذ",
+         simple: "قلّل الزجاج في الجهة الغربية.",
+        detail: "يوصى بتقليل نسبة الزجاج في الواجهة الغربية للحد من اكتساب الحرارة.",
       },
       shading: {
-        title: "التظليل",
-        simple: "ضع كاسرات شمس على الجهة الجنوبية.",
-        detail:
-          "أضف كاسرات شمس أفقية على الواجهة الجنوبية بعمق يقارب 60 سم، لتحجب شمس الصيف العالية وتسمح بشمس الشتاء المنخفضة.",
-      },
-      garden: {
-        title: "موقع الحديقة",
-        simple: "ضع الفناء والحديقة في الجهة الشرقية.",
-        detail:
-          "المبنى يظلل الجهة الشرقية بعد الظهر، فتصلح لفناء مريح وحديقة أقل استهلاكًا للماء.",
-      },
-      
-      materials: {
-        title: "مواد البناء",
-        simple: "استخدم الزجاج المزدوج والمواد العازلة للصوت والحرارة في الجهة الشرقية.",
-        detail:
-         "يوصى باستخدام الزجاج المزدوج والمواد العازلة للصوت والحرارة في الجهة الشرقية.",
+       title: "التظليل",
+       simple: "ضع كاسرات شمس على الجهة الجنوبية.",
+       detail: "يوصى بإضافة كاسرات شمس على الواجهة الجنوبية لتقليل الإشعاع الشمسي المباشر.",
      },
+     garden: {
+     title: "موقع الحديقة",
+     simple: "ضع الفناء والحديقة في الجهة الشرقية.",
+     detail: "يُفضّل وضع الفناء والحديقة في الجهة الشرقية للاستفادة من ظل المبنى.",
+    },
+    materials: {
+     title: "مواد البناء",
+     simple: "استخدم الزجاج المزدوج والمواد العازلة للصوت والحرارة في الجهة الشرقية.",
+    detail: "يوصى باستخدام الزجاج المزدوج والعزل الحراري في الجهة الشرقية، مع مراعاة استخدام العزل الصوتي في المبنى بناءً على مستوى الضوضاء في الموقع.",
+    },
+
 
     },
   },
@@ -295,36 +290,31 @@ const en: ResultsCopy = {
     supporting: "Supporting indicators",
     items: {
       orientation: {
-        title: "Building orientation",
-        simple: "Face most of the house to the north.",
-        detail:
-          "Orienting the main mass to the north reduces direct radiation on the longer façades at midday, which suits Riyadh's hot-arid climate best.",
-      },
-      windows: {
-        title: "Window design",
-        simple: "Use less glass on the west side.",
-        detail:
-          "Keep the glazing-to-wall ratio low on the west façade and use insulated double glazing to soften the afternoon heat.",
-      },
-      shading: {
-        title: "Shading",
-        simple: "Add sun breakers on the south side.",
-        detail:
-          "Add horizontal sun breakers about 60 cm deep on the south façade to block the high summer sun and let the low winter sun in.",
-      },
-      garden: {
-        title: "Garden placement",
-        simple: "Put the courtyard and garden on the east side.",
-        detail:
-          "The building shades the east side in the afternoon, so it suits a comfortable courtyard and a garden that needs less water.",
-      },
-      
-      materials: {
-        title: "Building Materials",
-        simple: "Use double-glazed windows and thermal and acoustic insulation on the eastern side.",
-        detail:
-         "Double glazing and thermal and acoustic insulation are recommended on the eastern side.",
+       title: "Building orientation",
+       simple: "Face most of the house to the north.",
+       detail: "Orienting the main building mass toward the north is recommended to reduce direct solar radiation exposure.",
      },
+     windows: {
+       title: "Window design",
+       simple: "Use less glass on the west side.",
+       detail: "Reducing glazing on the western facade is recommended to minimize heat gain.",
+     },
+     shading: {
+       title: "Shading",
+       simple: "Add sun breakers on the south side.",
+       detail: "Adding sun-shading devices to the southern facade is recommended to reduce direct solar radiation.",
+     },
+     garden: {
+       title: "Garden placement",
+       simple: "Put the courtyard and garden on the east side.",
+       detail: "Placing the courtyard and garden on the eastern side is preferred to benefit from the building's shade.",
+     },
+      materials:{
+        title:  "Building Materials",
+       simple: "Use double-glazed windows and thermal and acoustic insulation on the eastern side.",
+       detail: "Double glazing and thermal insulation are recommended on the eastern side, while acoustic insulation should be considered throughout the building based on site noise levels.",
+      },
+
 
     },
   },
