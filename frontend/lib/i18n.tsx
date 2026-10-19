@@ -53,6 +53,10 @@ const ar = {
   "error.passwordShort": "كلمة المرور يجب ألا تقل عن {min} أحرف",
   "error.passwordMismatch": "كلمتا المرور غير متطابقتين",
   "error.termsRequired": "يجب الموافقة على الشروط والأحكام",
+  "error.passwordRequirements": "كلمة المرور لا تستوفي جميع الشروط المطلوبة.",
+  "signup.passwordMinLength": "8 أحرف على الأقل",
+  "signup.passwordNumber": "رقم واحد على الأقل (0–9)",
+  "signup.passwordUppercase": "حرف إنجليزي كبير واحد على الأقل (A–Z)",
 
   "login.title": "تسجيل الدخول",
   "login.subtitle": "مرحبًا بعودتك، تابع تحليل مواقعك",
@@ -168,6 +172,10 @@ const en: Record<TranslationKey, string> = {
   "error.passwordShort": "Password must be at least {min} characters",
   "error.passwordMismatch": "Passwords do not match",
   "error.termsRequired": "You must accept the terms and conditions",
+  "error.passwordRequirements": "Password does not meet all the required criteria.",
+  "signup.passwordMinLength": "At least 8 characters",
+  "signup.passwordNumber": "At least one number (0–9)",
+  "signup.passwordUppercase": "At least one uppercase letter (A–Z)",
 
   "login.title": "Log in",
   "login.subtitle": "Welcome back, continue analyzing your sites",

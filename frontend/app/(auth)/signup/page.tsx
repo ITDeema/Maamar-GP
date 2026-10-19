@@ -10,7 +10,11 @@ import Input from "@/components/Input";
 import SegmentedControl from "@/components/SegmentedControl";
 import { useT } from "@/lib/i18n";
 import type { Role } from "@/lib/user";
-import { MIN_PASSWORD_LENGTH, isValidEmail } from "@/lib/validation";
+import {
+  isValidEmail,
+  isValidPassword,
+  getPasswordRequirements,
+} from "@/lib/validation";
 
 export default function SignupPage() {
   const { t } = useT();
@@ -25,10 +29,10 @@ export default function SignupPage() {
 
   
   const emailError = isValidEmail(email) ? undefined : t("error.emailInvalid");
-  const passwordError =
-    password.length < MIN_PASSWORD_LENGTH
-      ? t("error.passwordShort", { min: MIN_PASSWORD_LENGTH })
-      : undefined;
+  const passwordRequirements = getPasswordRequirements(password);
+  const passwordError = isValidPassword(password)
+     ? undefined
+       : t("error.passwordRequirements");
   const confirmPasswordError =
     confirmPassword !== password ? t("error.passwordMismatch") : undefined;
   const termsError = accepted ? undefined : t("error.termsRequired");
@@ -39,9 +43,12 @@ export default function SignupPage() {
     if (emailError || passwordError || confirmPasswordError || termsError)
     return;
 
-    // TODO: call the sign-up API, then send the user to the OTP
-    // verification screen once it exists. For now go to login.
-    router.push("/login");
+
+    // TODO: Integrate the sign-up API and establish an authenticated
+    // session before redirecting in the production version.
+    // For now, continue to Home after client-side validation.
+    router.push("/home");
+
   }
 
   return (
@@ -75,15 +82,58 @@ export default function SignupPage() {
           onChange={(e) => setEmail(e.target.value)}
           error={submitted ? emailError : undefined}
         />
-        <Input
-          label={t("common.password")}
-          type="password"
-          dir="ltr"
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          error={submitted ? passwordError : undefined}
+        
+        <div className="flex flex-col gap-2">
+         <Input
+         label={t("common.password")}
+         type="password"
+         dir="ltr"
+         autoComplete="new-password"
+         value={password}
+         onChange={(e) => setPassword(e.target.value)}
+         error={submitted ? passwordError : undefined}
         />
+
+        <div className="flex flex-col gap-2 text-xs" aria-live="polite">
+         {[
+           {
+            key: "signup.passwordMinLength",
+            valid: passwordRequirements.minLength,
+         },
+           {
+            key: "signup.passwordNumber",
+            valid: passwordRequirements.hasNumber,
+          },
+        {
+         key: "signup.passwordUppercase",
+         valid: passwordRequirements.hasUppercase,
+      },
+        ].map((rule) => (
+      <div
+        key={rule.key}
+        className={`flex items-center gap-2 ${
+          rule.valid ? "text-green-700" : "text-navy-900/60"
+        }`}
+      >
+        <span
+          aria-hidden="true"
+          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+            rule.valid
+              ? "border-green-700 bg-green-700 text-white"
+              : "border-navy-900/30"
+          }`}
+        >
+          {rule.valid && "✓"}
+        </span>
+
+        <span>
+          {t(rule.key as Parameters<typeof t>[0])}
+        </span>
+      </div>
+    ))}
+  </div>
+</div>
+
           <Input
           label={t("common.confirmPassword")}
           type="password"
