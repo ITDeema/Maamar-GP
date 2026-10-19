@@ -94,44 +94,32 @@ export default function SignupPage() {
          error={submitted ? passwordError : undefined}
         />
 
-        <div className="flex flex-col gap-2 text-xs" aria-live="polite">
-         {[
-           {
-            key: "signup.passwordMinLength",
-            valid: passwordRequirements.minLength,
-         },
-           {
-            key: "signup.passwordNumber",
-            valid: passwordRequirements.hasNumber,
-          },
-        {
-         key: "signup.passwordUppercase",
-         valid: passwordRequirements.hasUppercase,
-      },
-        ].map((rule) => (
-      <div
-        key={rule.key}
-        className={`flex items-center gap-2 ${
-          rule.valid ? "text-green-700" : "text-navy-900/60"
-        }`}
-      >
-        <span
-          aria-hidden="true"
-          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-            rule.valid
-              ? "border-green-700 bg-green-700 text-white"
-              : "border-navy-900/30"
-          }`}
-        >
-          {rule.valid && "✓"}
-        </span>
+        
+<div className="flex flex-col gap-1 text-xs" aria-live="polite">
+  {[
+    {
+      key: "signup.passwordMinLength",
+      valid: passwordRequirements.minLength,
+    },
+    {
+      key: "signup.passwordNumber",
+      valid: passwordRequirements.hasNumber,
+    },
+    {
+      key: "signup.passwordUppercase",
+      valid: passwordRequirements.hasUppercase,
+    },
+  ].map((rule) => (
+    <p
+      key={rule.key}
+      className={rule.valid ? "text-success-500" : "text-navy-900/60"}
+    >
+      <span aria-hidden="true">{rule.valid ? "✓" : "○"}</span>{" "}
+      {t(rule.key as Parameters<typeof t>[0])}
+    </p>
+  ))}
+</div>
 
-        <span>
-          {t(rule.key as Parameters<typeof t>[0])}
-        </span>
-      </div>
-    ))}
-  </div>
 </div>
 
           <Input

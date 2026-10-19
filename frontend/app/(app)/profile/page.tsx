@@ -11,7 +11,11 @@ import SegmentedControl from "@/components/SegmentedControl";
 import { useT } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
 import { mockUser } from "@/lib/user";
-import { isValidEmail, MIN_PASSWORD_LENGTH } from "@/lib/validation";
+import {
+  isValidEmail,
+  isValidPassword,
+  getPasswordRequirements,
+} from "@/lib/validation";
 type Dialog = "logout" | "delete" | "changePassword" | null;
 
 
@@ -69,11 +73,9 @@ export default function ProfilePage() {
       return;
     }
 
-    if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      setPasswordError(
-        t("error.passwordShort", { min: MIN_PASSWORD_LENGTH })
-      );
-      return;
+    if (!isValidPassword(newPassword)) {
+      setPasswordError(t("error.passwordRequirements"));
+     return;
     }
 
     if (newPassword !== confirmPassword) {
@@ -285,6 +287,27 @@ export default function ProfilePage() {
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
           />
+          <div className="flex flex-col gap-1 text-xs">
+          {(
+            [
+             ["minLength", "signup.passwordMinLength"],
+             ["hasNumber", "signup.passwordNumber"],
+             ["hasUppercase", "signup.passwordUppercase"],
+            ] as const
+           ).map(([key, label]) => {
+              const met = getPasswordRequirements(newPassword)[key];
+
+              return (
+                <p
+                key={key}
+                className={met ? "text-success-500" : "text-navy-900/60"}
+                >
+               <span aria-hidden="true">{met ? "✓" : "○"}</span>{" "}
+               {t(label)}
+              </p>
+           );
+         })}
+       </div>
 
           <Input
             label={t("profile.confirmPassword")}
