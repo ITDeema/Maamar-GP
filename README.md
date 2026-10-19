@@ -1,13 +1,13 @@
-# Mammar (معمـار)
+# Maamar (معمـار)
 
 > **An AI-Powered Environmental Site Analysis Web Platform for Residential Plots in Riyadh.**
 
 King Saud University · Department of Information Technology · IT496 Project
 
 ## 📖 About The Project
-**Mammar** is a decision-support platform that automates and enhances the environmental and contextual analysis of residential land plots in Riyadh. It helps both architects and homeowners make informed, Saudi code compliant, and environmentally optimized design decisions before construction begins.
+**Maamar** is a decision-support platform that automates and enhances the environmental and contextual analysis of residential land plots in Riyadh. It helps both architects and homeowners make informed, Saudi code compliant, and environmentally optimized design decisions before construction begins.
 
-The system evaluates site conditions such as solar exposure, wind patterns, shading, noise, and surrounding urban density, and presents them in a results dashboard with design recommendations.
+The system evaluates site conditions such as solar exposure, wind patterns, shading, noise, and surrounding urban density, and presents them in a results dashboard with design decisions.
 
 ## 🚀 Core Features
 *   **Role-Based Dashboards:** Interfaces tailored to **Homeowners** (simplified insights) and **Architects** (advanced indicators and in-depth explanations).
@@ -24,7 +24,7 @@ The system evaluates site conditions such as solar exposure, wind patterns, shad
 - Landing page, login, sign-up, and forgot-password screens
 - Home screen and map-based plot selection (street and satellite views)
 - Analysis flow and results dashboard: indicators, gauges and level meters, wind card, facade picker, site diagrams (sun and wind, roads, land use), neighbourhood information, regulatory constraints, and design decisions
-- History and Saved pages, rename-result dialog, export dialog, profile page, and privacy policy
+- History and Favorite pages, rename-result dialog, export dialog, profile page, and privacy policy
 - Arabic and English interface with right-to-left support
 
 **Not yet implemented**
@@ -71,7 +71,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 2. On the home screen, choose to analyze a new plot.
 3. On the map, click a location to select a plot.
 4. Start the analysis and wait for the results dashboard.
-5. Open **History** or **Saved** from the header to see past results.
+5. Open **History** or **Favorites** from the header to see past results.
 
 The interface starts in Arabic. Use the language switch in the header to change to English.
 
