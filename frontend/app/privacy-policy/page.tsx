@@ -118,7 +118,7 @@ export default function PrivacyPolicyPage() {
               href="/"
               className="text-navy-900/70 hover:text-navy-900"
             >
-              {lang === "ar" ? "الرئيسية" : "Home"}
+              {lang === "ar" ? "العودة إلى واجهة معمار" : "Back to MAAMAR"}
             </Link>
 
             <Link
