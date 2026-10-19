@@ -49,13 +49,20 @@ export type IndicatorsData = {
   site: SiteIndicators;
 };
 
-export type DecisionCode = "orientation" | "windows" | "shading" | "garden" | "setbacks";
+
+export type DecisionCode =
+  | "orientation"
+  | "windows"
+  | "shading"
+  | "garden"
+  | "materials";
+
 export const DECISIONS: DecisionCode[] = [
   "orientation",
   "windows",
   "shading",
   "garden",
-  "setbacks",
+  "materials",
 ];
 
 export type Constraints = {

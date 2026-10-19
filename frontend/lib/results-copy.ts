@@ -106,12 +106,14 @@ const ar = {
         detail:
           "المبنى يظلل الجهة الشرقية بعد الظهر، فتصلح لفناء مريح وحديقة أقل استهلاكًا للماء.",
       },
-      setbacks: {
-        title: "الارتدادات النظامية",
-        simple: "التزم بالارتدادات النظامية للقطعة.",
+      
+      materials: {
+        title: "مواد البناء",
+        simple: "استخدم الزجاج المزدوج والمواد العازلة للصوت والحرارة في الجهة الشرقية.",
         detail:
-          "روعيت الارتدادات الدنيا في موقع الكتلة المقترح: شمال {north} م، جنوب {south} م، شرق وغرب {east} م.",
-      },
+         "يوصى باستخدام الزجاج المزدوج والمواد العازلة للصوت والحرارة في الجهة الشرقية.",
+     },
+
     },
   },
   constraints: {
@@ -316,12 +318,14 @@ const en: ResultsCopy = {
         detail:
           "The building shades the east side in the afternoon, so it suits a comfortable courtyard and a garden that needs less water.",
       },
-      setbacks: {
-        title: "Regulatory setbacks",
-        simple: "Follow the required setbacks for the plot.",
+      
+      materials: {
+        title: "Building Materials",
+        simple: "Use double-glazed windows and thermal and acoustic insulation on the eastern side.",
         detail:
-          "The minimum setbacks are respected in the proposed building position: north {north} m, south {south} m, east and west {east} m.",
-      },
+         "Double glazing and thermal and acoustic insulation are recommended on the eastern side.",
+     },
+
     },
   },
   constraints: {
