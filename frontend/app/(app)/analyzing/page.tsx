@@ -56,10 +56,18 @@ function AnalyzingContent() {
   const lng = readNumber(params.get("lng"));
   const area = readNumber(params.get("area"));
   const demo = params.get("demo");
-  const valid = lat !== null && lng !== null && area !== null;
+  const villaTypeParam = params.get("villaType");
 
+  const villaType =
+  villaTypeParam === "attachedBoth" ||
+  villaTypeParam === "attachedOne" ||
+  villaTypeParam === "detached"
+    ? villaTypeParam
+    : null;
+  const valid =
+  lat !== null && lng !== null && area !== null && villaType !== null;
   useEffect(() => {
-    if (lat === null || lng === null || area === null) {
+    if (lat === null || lng === null || area === null || villaType === null) {
       router.replace("/select-plot");
       return;
     }
@@ -69,7 +77,13 @@ function AnalyzingContent() {
 
     runAnalysis({ lat, lng, area, demo }, setStep, controller.signal)
       .then(() => {
-        const id = addResult({ namePrefix: c.defaultName, area, lat, lng });
+        const id = addResult({
+          namePrefix: c.defaultName,
+          area,
+          lat,
+          lng,
+          villaType,
+       });
         setStatus("done");
         redirect = setTimeout(() => router.replace(`/results/${id}`), 900);
       })
@@ -82,7 +96,7 @@ function AnalyzingContent() {
       controller.abort();
       clearTimeout(redirect);
     };
-  }, [attempt, lat, lng, area, demo, router, addResult, c.defaultName]);
+  }, [attempt, lat, lng, area, demo, villaType, router, addResult, c.defaultName]);
 
   function retry() {
     setStatus("running");

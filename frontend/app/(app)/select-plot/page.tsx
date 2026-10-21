@@ -33,6 +33,7 @@ const PlotPickerMap = dynamic(() => import("@/components/map/PlotPickerMap"), {
 });
 
 type Mode = "map" | "coords";
+type VillaType = "attachedBoth" | "attachedOne" | "detached";
 type Message = { tone: "error" | "success"; text: string } | null;
 
 function Row({ label, value }: { label: string; value: ReactNode }) {
@@ -48,6 +49,8 @@ export default function SelectPlotPage() {
   const c = usePlotCopy().select;
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("map");
+  const [villaType, setVillaType] = useState<VillaType | "">("");
+  const [villaTypeError, setVillaTypeError] = useState("");
   const [latText, setLatText] = useState("");
   const [lngText, setLngText] = useState("");
   const [message, setMessage] = useState<Message>(null);
@@ -101,6 +104,14 @@ export default function SelectPlotPage() {
   
   function start() {
     if (!point || !plot) return;
+   if (!villaType) {
+   setVillaTypeError(c.villaTypeRequired);
+   return;
+   }
+
+   setVillaTypeError("");
+
+
 
     const areaText = optionalArea.trim();
     const heightText = expectedHeight.trim();
@@ -123,10 +134,11 @@ export default function SelectPlotPage() {
     setOptionalError("");
 
     const query = new URLSearchParams({
-      lat: String(point.lat),
-      lng: String(point.lng),
-      area: String(areaText === "" ? plot.area : Number(areaText)),
-    });
+     lat: String(point.lat),
+     lng: String(point.lng),
+     area: String(areaText === "" ? plot.area : Number(areaText)),
+     villaType: villaType,
+   });
 
     if (heightText !== "") {
       query.set("height", String(Number(heightText)));
@@ -227,6 +239,35 @@ export default function SelectPlotPage() {
                   <p className="text-navy-900/70">{c.plotLoading}</p>
                 )}
               </dl>
+            )}
+          </Card>
+          
+          <Card className="flex flex-col gap-3">
+             <label htmlFor="villa-type" className="text-sm font-bold">
+             {c.villaTypeTitle} <span className="text-danger-500">*</span>
+           </label>
+
+            <select
+             id="villa-type"
+             value={villaType}
+             onChange={(e) => {
+              setVillaType(e.target.value as VillaType | "");
+              setVillaTypeError("");
+             }}
+             required
+             aria-invalid={!!villaTypeError}
+             className="w-full rounded-control border border-navy-900/20 bg-white px-4 py-3 text-sm text-navy-900"
+             >
+             <option value="">{c.villaTypePlaceholder}</option>
+             <option value="attachedBoth">{c.villaTypes.attachedBoth}</option>
+             <option value="attachedOne">{c.villaTypes.attachedOne}</option>
+               <option value="detached">{c.villaTypes.detached}</option>
+           </select>
+
+            {villaTypeError && (
+             <StatusMessage tone="error">
+              {c.villaTypeRequired}
+               </StatusMessage>
             )}
           </Card>
 

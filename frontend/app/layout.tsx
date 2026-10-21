@@ -24,6 +24,10 @@ const plex = IBM_Plex_Sans({
 export const metadata: Metadata = {
   title: "معمار",
   description: "منصة تحليل المواقع السكنية بالذكاء الاصطناعي",
+  icons: {
+    icon: "/icon.svg",
+  },
+  
 };
 
 export default function RootLayout({

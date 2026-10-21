@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 
 export type AnalysisResult = {
   id: string;
+  villaType?: "attachedBoth" | "attachedOne" | "detached";
   name: string; // the title the user can rename
   area: number; // square meters
   lat: number;
@@ -34,7 +35,13 @@ const initialResults: AnalysisResult[] = [
   { id: "r6", name: "حي العارض", area: 340, lat: 24.745, lng: 46.73, date: "2026-08-14", saved: false, parcelNote: true },
 ];
 
-type NewResult = { namePrefix: string; area: number; lat: number; lng: number };
+type NewResult = {
+  namePrefix: string;
+  area: number;
+  lat: number;
+  lng: number;
+  villaType: "attachedBoth" | "attachedOne" | "detached";
+};
 
 type ResultsContextValue = {
   results: AnalysisResult[];
@@ -76,6 +83,7 @@ export function ResultsProvider({ children }: { children: ReactNode }) {
     projectCount.current += 1;
     const result: AnalysisResult = {
       id,
+      villaType: input.villaType,
       name: `${input.namePrefix} ${projectCount.current}`, // "Project 1", "Project 2", ...
       area: input.area,
       lat: input.lat,
