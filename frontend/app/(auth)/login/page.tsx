@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Input from "@/components/Input";
@@ -11,8 +12,9 @@ import { useT } from "@/lib/i18n";
 import { isValidEmail } from "@/lib/validation";
 
 export default function LoginPage() {
-  const { t } = useT();
+  const { t, setLang } = useT();
   const router = useRouter();
+  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -20,15 +22,46 @@ export default function LoginPage() {
   const emailError = isValidEmail(email) ? undefined : t("error.emailInvalid");
   const passwordError = password === "" ? t("error.passwordRequired") : undefined;
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    setSubmitted(true);
-    if (emailError || passwordError) return;
+  
+ async function handleSubmit(event: FormEvent) {
+   event.preventDefault();
+   setSubmitted(true);
 
-    // TODO: call the login API here. Until it exists, any valid-looking
-    // input passes. Also change the destination to the plot-selection page.
-    router.push("/home");
-  }
+   if (emailError || passwordError) return;
+
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+   });
+
+    if (error) {
+  console.error("Supabase Login Error:", error);
+  alert(error.message);
+  return;
+}
+
+   // Get the user's saved language from Supabase
+const { data: profile, error: profileError } = await supabase
+  .from("profiles")
+  .select("preferredLanguage")
+  .eq("userID", authData.user.id)
+  .single();
+
+if (profileError) {
+  console.error("Failed to load language:", profileError.message);
+}
+
+if (
+  profile?.preferredLanguage === "ar" ||
+  profile?.preferredLanguage === "en"
+) {
+  setLang(profile.preferredLanguage);
+}
+
+router.push("/home");
+router.refresh();
+ }
+
 
   return (
     <Card className="w-full max-w-md sm:p-8">

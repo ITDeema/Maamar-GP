@@ -1,7 +1,9 @@
+
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import Badge from "@/components/Badge";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
@@ -16,8 +18,8 @@ import {
   isValidPassword,
   getPasswordRequirements,
 } from "@/lib/validation";
-type Dialog = "logout" | "delete" | "changePassword" | null;
 
+type Dialog = "logout" | "delete" | "changePassword" | null;
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -31,65 +33,196 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 export default function ProfilePage() {
   const { t, lang, setLang } = useT();
   const router = useRouter();
+  const supabase = createClient();
+
   const [dialog, setDialog] = useState<Dialog>(null);
   const [deletePassword, setDeletePassword] = useState("");
-  
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  
+
   const [passwordError, setPasswordError] = useState("");
 
-
-  
   const [editingAccount, setEditingAccount] = useState(false);
-  
+
   const [accountEmail, setAccountEmail] = useState(mockUser.email);
   const [accountRole, setAccountRole] = useState(mockUser.role);
-  
+
   const [draftEmail, setDraftEmail] = useState(mockUser.email);
   const [draftRole, setDraftRole] = useState(mockUser.role);
   const [emailError, setEmailError] = useState("");
 
+  useEffect(() => {
+    async function loadProfile() {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-  function saveAccount() {
+      if (userError || !user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("userID", user.id)
+        .single();
+
+      if (profileError) {
+        console.error("Profile error:", profileError.message);
+      }
+
+      const realEmail = user.email ?? "";
+
+      setAccountEmail(realEmail);
+      setDraftEmail(realEmail);
+
+      if (profile?.role === "homeowner" || profile?.role === "architect") {
+        setAccountRole(profile.role);
+        setDraftRole(profile.role);
+      }
+    }
+
+    void loadProfile();
+  }, [router, supabase]);
+
+  async function changeLanguage(newLang: Lang) {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      alert("يرجى تسجيل الدخول مرة أخرى.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({ preferredLanguage: newLang })
+      .eq("userID", user.id)
+      .select("preferredLanguage")
+      .single();
+
+    if (error || !data) {
+      alert("تعذر حفظ اللغة، حاولي مرة أخرى.");
+      console.error("Language update error:", error);
+      return;
+    }
+
+    setLang(newLang);
+  }
+
+  async function saveAccount() {
     if (!isValidEmail(draftEmail.trim())) {
       setEmailError(t("error.emailInvalid"));
       return;
     }
 
-    setAccountEmail(draftEmail.trim());
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setEmailError("يرجى تسجيل الدخول مرة أخرى.");
+      return;
+    }
+
+    // Save the account type in profiles
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ role: draftRole })
+      .eq("userID", user.id);
+
+    if (profileError) {
+      setEmailError(profileError.message);
+      return;
+    }
+
+    // Update email through Supabase Auth
+    if (draftEmail.trim() !== user.email) {
+      const { error: authError } =
+        await supabase.auth.updateUser({
+          email: draftEmail.trim(),
+        });
+
+      if (authError) {
+        setEmailError(authError.message);
+        return;
+      }
+
+      alert("تم طلب تغيير البريد الإلكتروني. تحققي من رسائل التأكيد.");
+    }
+
     setAccountRole(draftRole);
+    setAccountEmail(user.email ?? "");
     setEmailError("");
     setEditingAccount(false);
   }
 
-
-
   
-  function validatePasswordChange() {
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordError(t("profile.passwordFieldsRequired"));
-      return;
-    }
-
-    if (!isValidPassword(newPassword)) {
-      setPasswordError(t("error.passwordRequirements"));
-     return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError(t("profile.passwordMismatch"));
-      return;
-    }
-
-    if (newPassword === currentPassword) {
-      setPasswordError(t("profile.passwordUnchanged"));
-      return;
-    }
-
-    setPasswordError("");
+async function validatePasswordChange() {
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    setPasswordError(t("profile.passwordFieldsRequired"));
+    return;
   }
+
+  if (!isValidPassword(newPassword)) {
+    setPasswordError(t("error.passwordRequirements"));
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    setPasswordError(t("profile.passwordMismatch"));
+    return;
+  }
+
+  if (newPassword === currentPassword) {
+    setPasswordError(t("profile.passwordUnchanged"));
+    return;
+  }
+
+  // Verify the current password
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user?.email) {
+    setPasswordError("يرجى تسجيل الدخول مرة أخرى.");
+    return;
+  }
+
+  const { error: verifyError } =
+    await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });  
+
+  if (verifyError) {
+    setPasswordError("كلمة المرور الحالية غير صحيحة.");
+    return;
+  }
+
+  // Update the password
+  const { error: updateError } =
+    await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+  if (updateError) {
+    setPasswordError(updateError.message);
+    return;
+  }
+
+  closeDialog();
+  alert("تم تغيير كلمة المرور بنجاح.");
+}
+
 
   function closeDialog() {
     setDialog(null);
@@ -100,11 +233,17 @@ export default function ProfilePage() {
     setPasswordError("");
   }
 
+  async function logout() {
+    const { error } = await supabase.auth.signOut();
 
-  function logout() {
-    // TODO: clear the session via the API.
+    if (error) {
+      alert("تعذر تسجيل الخروج، حاولي مرة أخرى.");
+      return;
+    }
+
     closeDialog();
     router.push("/login");
+    router.refresh();
   }
 
   function deleteAccount() {
@@ -115,7 +254,7 @@ export default function ProfilePage() {
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-8">
-      
+
       <div className="flex items-center gap-4">
         <div
           aria-hidden="true"
@@ -143,9 +282,8 @@ export default function ProfilePage() {
         </div>
       </div>
 
-
       <Card>
-        
+
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-bold">
             {t("profile.accountInfo")}
@@ -153,11 +291,11 @@ export default function ProfilePage() {
 
           <Button
             variant="secondary"
-            
-             onClick={() => {
-             setDraftEmail(accountEmail);
-             setDraftRole(accountRole);
-             setEditingAccount(true);
+
+            onClick={() => {
+              setDraftEmail(accountEmail);
+              setDraftRole(accountRole);
+              setEditingAccount(true);
             }}
 
           >
@@ -166,65 +304,63 @@ export default function ProfilePage() {
         </div>
 
         <dl className="flex flex-col gap-4">
-          
-          
-        {editingAccount ? (
-  <div className="flex flex-col gap-4">
-    <Input
-      label={t("common.email")}
-      type="email"
-      dir="ltr"
-      autoComplete="email"
-      value={draftEmail}
-      onChange={(e) => setDraftEmail(e.target.value)}
-      error={emailError || undefined}
-    />
 
-            <SegmentedControl
-              label={t("common.accountType")}
-              
+          {editingAccount ? (
+            <div className="flex flex-col gap-4">
+              <Input
+                label={t("common.email")}
+                type="email"
+                dir="ltr"
+                autoComplete="email"
+                value={draftEmail}
+                onChange={(e) => setDraftEmail(e.target.value)}
+                error={emailError || undefined}
+              />
+
+              <SegmentedControl
+                label={t("common.accountType")}
+
                 value={draftRole}
-               onChange={setDraftRole}
+                onChange={setDraftRole}
 
-              
-              options={[
-                { value: "homeowner", label: t("role.homeowner") },
-                { value: "architect", label: t("role.architect") },
-              ]}
-            />
+                options={[
+                  { value: "homeowner", label: t("role.homeowner") },
+                  { value: "architect", label: t("role.architect") },
+                ]}
+              />
 
-            <div className="flex flex-wrap gap-3">
-              
-               <Button onClick={saveAccount}>
-               {t("common.save")}
-               </Button>
+              <div className="flex flex-wrap gap-3">
 
-              <Button
-                variant="secondary"
-                
-                onClick={() => {
-                setDraftEmail(accountEmail);
-                setDraftRole(accountRole);
-                setEditingAccount(false);
-             }}
+                <Button onClick={saveAccount}>
+                  {t("common.save")}
+                </Button>
 
-              >
-                {t("common.cancel")}
-              </Button>
+                <Button
+                  variant="secondary"
+
+                  onClick={() => {
+                    setDraftEmail(accountEmail);
+                    setDraftRole(accountRole);
+                    setEditingAccount(false);
+                  }}
+
+                >
+                  {t("common.cancel")}
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <dl className="flex flex-col gap-4">
-            <InfoRow
-              label={t("common.email")}
-              value={accountEmail}
-            />
-            <InfoRow
-              label={t("common.accountType")}
-              value={t(`role.${accountRole}`)}
-            />
-          </dl>
-        )}
+          ) : (
+            <dl className="flex flex-col gap-4">
+              <InfoRow
+                label={t("common.email")}
+                value={accountEmail}
+              />
+              <InfoRow
+                label={t("common.accountType")}
+                value={t(`role.${accountRole}`)}
+              />
+            </dl>
+          )}
 
         </dl>
       </Card>
@@ -235,7 +371,7 @@ export default function ProfilePage() {
           <SegmentedControl<Lang>
             label={t("profile.language")}
             value={lang}
-            onChange={setLang}
+            onChange={changeLanguage}
             options={[
               { value: "ar", label: "العربية" },
               { value: "en", label: "English" },
@@ -247,13 +383,13 @@ export default function ProfilePage() {
       <Card>
         <h2 className="mb-4 text-sm font-bold">{t("profile.manage")}</h2>
         <div className="flex flex-wrap gap-3">
-          
-<Button
-  variant="secondary"
-  onClick={() => setDialog("changePassword")}
->
-  {t("profile.changePassword")}
-</Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => setDialog("changePassword")}
+          >
+            {t("profile.changePassword")}
+          </Button>
 
           <Button variant="secondary" onClick={() => setDialog("logout")}>
             {t("profile.logout")}
@@ -263,7 +399,7 @@ export default function ProfilePage() {
           </Button>
         </div>
       </Card>
-      
+
       <Modal
         open={dialog === "changePassword"}
         onClose={closeDialog}
@@ -288,26 +424,26 @@ export default function ProfilePage() {
             onChange={(e) => setNewPassword(e.target.value)}
           />
           <div className="flex flex-col gap-1 text-xs">
-          {(
-            [
-             ["minLength", "signup.passwordMinLength"],
-             ["hasNumber", "signup.passwordNumber"],
-             ["hasUppercase", "signup.passwordUppercase"],
-            ] as const
-           ).map(([key, label]) => {
+            {(
+              [
+                ["minLength", "signup.passwordMinLength"],
+                ["hasNumber", "signup.passwordNumber"],
+                ["hasUppercase", "signup.passwordUppercase"],
+              ] as const
+            ).map(([key, label]) => {
               const met = getPasswordRequirements(newPassword)[key];
 
               return (
                 <p
-                key={key}
-                className={met ? "text-success-500" : "text-navy-900/60"}
+                  key={key}
+                  className={met ? "text-success-500" : "text-navy-900/60"}
                 >
-               <span aria-hidden="true">{met ? "✓" : "○"}</span>{" "}
-               {t(label)}
-              </p>
-           );
-         })}
-       </div>
+                  <span aria-hidden="true">{met ? "✓" : "○"}</span>{" "}
+                  {t(label)}
+                </p>
+              );
+            })}
+          </div>
 
           <Input
             label={t("profile.confirmPassword")}
@@ -317,20 +453,18 @@ export default function ProfilePage() {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
-          
+
           {passwordError && (
             <p role="alert" className="text-sm text-danger-500">
               {passwordError}
             </p>
           )}
 
-
           <div className="mt-3 flex flex-wrap gap-3">
-            
-           <Button onClick={validatePasswordChange}>
-           {t("profile.validatePassword")}
-           </Button>
 
+            <Button onClick={validatePasswordChange}>
+              {t("profile.validatePassword")}
+            </Button>
 
             <Button variant="secondary" onClick={closeDialog}>
               {t("common.cancel")}
@@ -338,7 +472,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </Modal>
-
 
       <Modal
         open={dialog === "logout"}

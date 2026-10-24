@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Input from "@/components/Input";
@@ -19,6 +20,7 @@ import {
 export default function SignupPage() {
   const { t } = useT();
   const router = useRouter();
+  const supabase = createClient();
   const [role, setRole] = useState<Role>("homeowner");
   
   const [email, setEmail] = useState("");
@@ -37,19 +39,34 @@ export default function SignupPage() {
     confirmPassword !== password ? t("error.passwordMismatch") : undefined;
   const termsError = accepted ? undefined : t("error.termsRequired");
 
-  function handleSubmit(event: FormEvent) {
+  
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitted(true);
-    if (emailError || passwordError || confirmPasswordError || termsError)
-    return;
 
+   if (emailError || passwordError || confirmPasswordError || termsError) {
+     return;
+   }
 
-    // TODO: Integrate the sign-up API and establish an authenticated
-    // session before redirecting in the production version.
-    // For now, continue to Home after client-side validation.
-    router.push("/home");
+   const { error } = await supabase.auth.signUp({
+     email: email.trim(),
+     password,
+     options: {
+       data: {
+         role: role,
+       },
+     },
+   });
 
-  }
+   if (error) {
+     alert(error.message);
+     return;
+   }
+
+   alert("تم إرسال طلب التسجيل. تحققي من بريدك الإلكتروني لتفعيل الحساب.");
+   router.push("/login");
+  } 
+
 
   return (
     <Card className="w-full max-w-md sm:p-8">
