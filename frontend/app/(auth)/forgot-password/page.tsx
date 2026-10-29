@@ -9,24 +9,42 @@ import Card from "@/components/Card";
 import Input from "@/components/Input";
 import { useT } from "@/lib/i18n";
 import { isValidEmail } from "@/lib/validation";
+import { createClient } from "@/lib/supabase/client";
 
 export default function ForgotPasswordPage() {
   const { t } = useT();
   const router = useRouter();
+  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
   const emailError = isValidEmail(email) ? undefined : t("error.emailInvalid");
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    setSubmitted(true);
-    if (emailError) return;
+  
+async function handleSubmit(event: FormEvent) {
+  event.preventDefault();
+  setSubmitted(true);
 
-    // TODO: call the API to send the verification code, then go to the
-    // OTP verification screen once it exists. For now go back to login.
-    router.push("/login");
+  if (emailError) return;
+
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    email.trim(),
+    {
+      redirectTo: `${window.location.origin}/reset-password`,
+    }
+  );
+
+  if (error) {
+    console.error("Password reset error:", error.message);
+    alert("تعذر إرسال رابط الاسترجاع. حاول مرة أخرى لاحقًا.");
+    return;
   }
+
+  alert(
+    "إذا كان البريد مسجلًا، ستصلك رسالة تحتوي على رابط إعادة تعيين كلمة المرور."
+  );
+}
+
 
   return (
     <Card className="w-full max-w-md sm:p-8">
