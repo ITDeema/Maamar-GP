@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
@@ -297,6 +298,11 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const lang = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const [hydrated, setHydrated] = useState(false);
+
+ useEffect(() => {
+   setHydrated(getSnapshot() === lang);
+  }, [lang]);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -326,7 +332,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
 
   return (
-    <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
+    <LanguageContext.Provider value={value}>{hydrated ? children : null}</LanguageContext.Provider>
   );
 }
 

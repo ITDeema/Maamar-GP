@@ -12,7 +12,7 @@ import Modal from "@/components/Modal";
 import SegmentedControl from "@/components/SegmentedControl";
 import { useT } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
-import { mockUser } from "@/lib/user";
+
 import {
   isValidEmail,
   isValidPassword,
@@ -33,7 +33,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 export default function ProfilePage() {
   const { t, lang, setLang } = useT();
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   const [dialog, setDialog] = useState<Dialog>(null);
   const [deletePassword, setDeletePassword] = useState("");
@@ -45,49 +45,62 @@ export default function ProfilePage() {
   const [passwordError, setPasswordError] = useState("");
 
   const [editingAccount, setEditingAccount] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
 
-  const [accountEmail, setAccountEmail] = useState(mockUser.email);
-  const [accountRole, setAccountRole] = useState(mockUser.role);
+ const [accountEmail, setAccountEmail] = useState("");
+ const [accountRole, setAccountRole] = useState<"homeowner" | "architect">("homeowner");
 
-  const [draftEmail, setDraftEmail] = useState(mockUser.email);
-  const [draftRole, setDraftRole] = useState(mockUser.role);
-  const [emailError, setEmailError] = useState("");
+ const [draftEmail, setDraftEmail] = useState("");
+ const [draftRole, setDraftRole] = useState<"homeowner" | "architect">("homeowner");
+ const [emailError, setEmailError] = useState("");
 
-  useEffect(() => {
-    async function loadProfile() {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+  
+useEffect(() => {
+  async function loadProfile() {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        router.replace("/login");
-        return;
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("userID", user.id)
-        .single();
-
-      if (profileError) {
-        console.error("Profile error:", profileError.message);
-      }
-
-      const realEmail = user.email ?? "";
-
-      setAccountEmail(realEmail);
-      setDraftEmail(realEmail);
-
-      if (profile?.role === "homeowner" || profile?.role === "architect") {
-        setAccountRole(profile.role);
-        setDraftRole(profile.role);
-      }
+    if (userError || !user) {
+      router.replace("/login");
+      return;
     }
 
-    void loadProfile();
-  }, [router, supabase]);
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role, preferredLanguage")
+      .eq("userID", user.id)
+      .single();
+
+    if (profileError) {
+      console.error("Profile error:", profileError.message);
+    }
+
+    const realEmail = user.email ?? "";
+
+    setAccountEmail(realEmail);
+    setDraftEmail(realEmail);
+
+    if (
+      profile?.role === "homeowner" ||
+      profile?.role === "architect"
+    ) {
+      setAccountRole(profile.role);
+      setDraftRole(profile.role);
+    }
+
+    if (
+      profile?.preferredLanguage === "ar" ||
+      profile?.preferredLanguage === "en"
+    ) {
+      setLang(profile.preferredLanguage);
+    }
+    setProfileLoading(false);
+  }
+
+  void loadProfile();
+}, [router, supabase, setLang]);
 
   async function changeLanguage(newLang: Lang) {
     const {
@@ -151,8 +164,13 @@ export default function ProfilePage() {
         });
 
       if (authError) {
-        setEmailError(authError.message);
-        return;
+        setEmailError(
+        authError.code === "over_email_send_rate_limit" ||
+       authError.message.toLowerCase().includes("rate limit")
+       ? "تم تجاوز الحد المسموح لإرسال رسائل البريد الإلكتروني. حاولي مرة أخرى لاحقًا."
+       : authError.message
+      );
+       return;
       }
 
       alert("تم طلب تغيير البريد الإلكتروني. تحققي من رسائل التأكيد.");
@@ -246,11 +264,38 @@ async function validatePasswordChange() {
     router.refresh();
   }
 
-  function deleteAccount() {
-    // TODO: call the delete-account API with the password.
-    closeDialog();
-    router.push("/login");
+  async function deleteAccount() {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError || !session) {
+    alert("يرجى تسجيل الدخول مرة أخرى.");
+    return;
   }
+
+  const response = await fetch("/api/account/delete", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      password: deletePassword,
+    }),
+  });
+
+  if (!response.ok) {
+    alert("تعذر حذف الحساب. تأكدي من كلمة المرور وحاولي مرة أخرى.");
+    return;
+  }
+
+  await supabase.auth.signOut();
+  closeDialog();
+  router.replace("/");
+  router.refresh();
+}
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-4 px-6 py-8">
@@ -278,7 +323,9 @@ async function validatePasswordChange() {
           <h1 className="font-heading text-xl font-bold">
             {t("profile.myAccount")}
           </h1>
-          <Badge>{t(`role.${mockUser.role}`)}</Badge>
+          <Badge>
+  {profileLoading ? "" : t(`role.${accountRole}`)}
+</Badge>
         </div>
       </div>
 
@@ -349,18 +396,23 @@ async function validatePasswordChange() {
                 </Button>
               </div>
             </div>
-          ) : (
-            <dl className="flex flex-col gap-4">
-              <InfoRow
-                label={t("common.email")}
-                value={accountEmail}
-              />
-              <InfoRow
-                label={t("common.accountType")}
-                value={t(`role.${accountRole}`)}
-              />
-            </dl>
-          )}
+           
+) : (
+  <dl className="flex flex-col gap-4">
+    <InfoRow
+      label={t("common.email")}
+      value={profileLoading ? "" : accountEmail}
+    />
+    <InfoRow
+      label={t("common.accountType")}
+      value={
+        profileLoading
+          ? ""
+          : t(`role.${accountRole}`)
+      }
+    />
+  </dl>
+)}
 
         </dl>
       </Card>
