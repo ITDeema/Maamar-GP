@@ -18,6 +18,11 @@ export type RawBuilding = {
   class: string | null;
 };
 
+export type ServicesResponse = {
+  radius: number; // meters
+  services: Record<string, { count: number; nearest: number | null }>;
+};
+
 export type Tags = Record<string, string | undefined>;
 export type OsmPoint = { lat: number; lon: number };
 export type OsmElement = {
@@ -60,6 +65,23 @@ export async function fetchSunPath(lat: number, lng: number, signal?: AbortSigna
     if (!res.ok) throw new Error(`Sun path request failed (${res.status})`);
     const data = (await res.json()) as SunPath;
     if (!data.arcs) throw new Error("Sun path response has no arcs");
+    return data;
+  } finally {
+    request.done();
+  }
+}
+
+// Nearest services (mosque, school...) from our backend, same calculation as the dataset.
+// Throws on failure so the card can show its own error and a retry button.
+export async function fetchServices(lat: number, lng: number, signal?: AbortSignal): Promise<ServicesResponse> {
+  const request = limited(signal, 30_000);
+  try {
+    const res = await fetch(`${API_URL}/services?latitude=${lat}&longitude=${lng}`, {
+      signal: request.signal,
+    });
+    if (!res.ok) throw new Error(`Services request failed (${res.status})`);
+    const data = (await res.json()) as ServicesResponse;
+    if (!data.services) throw new Error("Services response has no services");
     return data;
   } finally {
     request.done();

@@ -320,7 +320,7 @@ function ResultsContent() {
 
       {!architect && ready && (
         <div className="mt-5">
-          <NeighbourhoodCard site={ready.site} />
+          <NeighbourhoodCard site={ready.site} lat={lat} lng={lng} />
         </div>
       )}
 

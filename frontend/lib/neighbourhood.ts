@@ -80,15 +80,7 @@ export function neighboursFor(facade: Facade): Neighbour[] {
 
 /* ---------- nearest services ---------- */
 
-export type ServiceKind = "mosque" | "school" | "pharmacy" | "market";
-export type Service = { kind: ServiceKind; distance: number | null }; // m, null = none found
-
-// TEMPORARY MOCK. Replace with the /pois endpoint later.
-export function nearestServices(): Service[] {
-  return [
-    { kind: "mosque", distance: 180 },
-    { kind: "school", distance: 420 },
-    { kind: "pharmacy", distance: 650 },
-    { kind: "market", distance: null },
-  ];
-}
+// Same groups as the dataset notebook (the other groups, auto and nuisance, are not shown to homeowners).
+export const SERVICE_KINDS = ["mosque", "education", "hospital", "commercial", "park", "government"] as const;
+export type ServiceKind = (typeof SERVICE_KINDS)[number];
+export type Service = { kind: ServiceKind; distance: number | null; count: number }; // m, null = none within 800 m
