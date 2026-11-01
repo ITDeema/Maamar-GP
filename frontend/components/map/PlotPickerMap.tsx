@@ -9,7 +9,14 @@ import type { LatLng } from "@/lib/geo";
 export type MapFocus = { point: LatLng; zoom: number; nonce: number };
 
 type PlotPickerMapProps = {
-  selected: { point: LatLng; width: number; depth: number; rotation: number } | null;
+  selected: {
+    point: LatLng;
+    width: number;
+    depth: number;
+    rotation: number;
+    outline?: LatLng[] | null; // when given, the real plot boundary is drawn instead of a rectangle
+    pending?: boolean; // true while the plot is loading: only the pin is drawn
+  } | null;
   focus: MapFocus | null; // change `nonce` to make the map fly to a point
   onPick: (point: LatLng) => void;
   label: string;
@@ -100,11 +107,16 @@ export default function PlotPickerMap({ selected, focus, onPick, label, layerLab
     group.clearLayers();
     if (!selected) return;
 
-    const corners = plotPolygon(selected.point, selected.width, selected.depth,selected.rotation,);
-    L.polygon(
-      corners.map((c) => [c.lat, c.lng] as L.LatLngTuple),
-      { color: "#C08649", weight: 3, fillColor: "#C08649", fillOpacity: 0.3 },
-    ).addTo(group);
+    if (!selected.pending) {
+      const corners =
+        selected.outline && selected.outline.length >= 3
+          ? selected.outline
+          : plotPolygon(selected.point, selected.width, selected.depth, selected.rotation);
+      L.polygon(
+        corners.map((c) => [c.lat, c.lng] as L.LatLngTuple),
+        { color: "#C08649", weight: 3, fillColor: "#C08649", fillOpacity: 0.3 },
+      ).addTo(group);
+    }
     L.marker([selected.point.lat, selected.point.lng], { icon: pinIcon, keyboard: false }).addTo(group);
   }, [selected]);
 

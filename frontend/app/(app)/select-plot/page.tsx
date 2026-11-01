@@ -12,7 +12,8 @@ import SegmentedControl from "@/components/SegmentedControl";
 import StatusMessage from "@/components/analysis/StatusMessage";
 import { usePlotCopy } from "@/components/analysis/usePlotCopy";
 import type { MapFocus } from "@/components/map/PlotPickerMap";
-import { USE_MOCK_DATA, lookupPlot } from "@/lib/analysis";
+import { USE_MOCK_DATA, fetchNeighborhood, lookupPlot } from "@/lib/analysis";
+import { useT } from "@/lib/i18n";
 import type { PlotInfo } from "@/lib/analysis";
 import { formatCoordinates, isInsideRiyadh, parseCoordinates } from "@/lib/geo";
 import type { LatLng } from "@/lib/geo";
@@ -47,6 +48,7 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
 
 export default function SelectPlotPage() {
   const c = usePlotCopy().select;
+  const { lang } = useT();
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("map");
   const [villaType, setVillaType] = useState<VillaType | "">("");
@@ -56,6 +58,8 @@ export default function SelectPlotPage() {
   const [message, setMessage] = useState<Message>(null);
   const [point, setPoint] = useState<LatLng | null>(null);
   const [plot, setPlot] = useState<PlotInfo | null>(null);
+  // undefined while loading, null when no neighborhood was found
+  const [neighborhood, setNeighborhood] = useState<string | null | undefined>(undefined);
   const [focus, setFocus] = useState<MapFocus | null>(null);
   const [optionalArea, setOptionalArea] = useState("");
   const [expectedHeight, setExpectedHeight] = useState("");
@@ -66,10 +70,15 @@ export default function SelectPlotPage() {
   function selectPoint(next: LatLng) {
     setPoint(next);
     setPlot(null);
+    setNeighborhood(undefined);
     setFocus({ point: next, zoom: 17, nonce: Date.now() });
     const id = ++lookupId.current;
+    // the plot and the neighborhood load in parallel; each shows as soon as it arrives
     lookupPlot(next).then((info) => {
       if (id === lookupId.current) setPlot(info); // ignore answers for an older click
+    });
+    fetchNeighborhood(next, lang).then((name) => {
+      if (id === lookupId.current) setNeighborhood(name);
     });
   }
 
@@ -154,6 +163,8 @@ export default function SelectPlotPage() {
       width: plot?.width ?? 20,
       depth: plot?.depth ?? 24,
       rotation: 0,
+      outline: plot?.outline ?? null,
+      pending: !plot, // draw only the pin until the real plot arrives
     }
   : null;
 
@@ -232,7 +243,7 @@ export default function SelectPlotPage() {
                         </bdi>
                       }
                     />
-                    <Row label={c.neighborhood} value={plot.neighborhood} />
+                    <Row label={c.neighborhood} value={neighborhood === undefined ? "…" : (neighborhood ?? c.unknown)} />
                     <Row label={c.orientation} value={c.directions[plot.orientation]} />
                   </>
                 ) : (

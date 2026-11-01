@@ -1,4 +1,5 @@
 import type { LatLng } from "@/lib/geo";
+import type { Lang } from "@/lib/i18n";
 
 /*
  * TEMPORARY MOCK DATA LAYER.
@@ -32,13 +33,33 @@ const DIRECTIONS: Direction8[] = [
   "northWest",
 ];
 
-const NEIGHBORHOODS = ["الملقا", "النرجس", "الياسمين", "حطين", "الواحة", "العارض"];
+// The neighborhood is real: it comes from OpenStreetMap (Nominatim reverse geocoding),
+// in the screen language. null means it could not be found for this point.
+const NEIGHBORHOOD_KEYS = ["neighbourhood", "suburb", "quarter", "city_district"] as const;
+
+export async function fetchNeighborhood(point: LatLng, lang: Lang): Promise<string | null> {
+  const url =
+    "https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&addressdetails=1" +
+    `&lat=${point.lat}&lon=${point.lng}&accept-language=${lang}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { address?: Record<string, string | undefined> };
+    for (const key of NEIGHBORHOOD_KEYS) {
+      const name = data.address?.[key];
+      if (name) return name;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export type PlotInfo = {
   width: number; // meters
   depth: number; // meters
   area: number; // square meters
-  neighborhood: string;
+  outline: LatLng[] | null; // the real plot boundary, when the parcel was found
   orientation: Direction8;
 };
 
@@ -49,17 +70,85 @@ function hashPoint(point: LatLng): number {
   return hash;
 }
 
-// Pretends to look up the plot under a point. The same point always gives the same plot.
+// The real plot under the point, from the Riyadh parcels layer (ArcGIS):
+// its land area and its boundary. Same request as the dataset notebook, plus the boundary.
+// Returns null when no parcel is found.
+const PARCELS_URL =
+  "https://services-ap1.arcgis.com/if9krLUYaMWhxyMO/ArcGIS/rest/services/Riyadh_Parcel/FeatureServer/0/query";
+
+type Parcel = { area: number; outline: LatLng[] | null };
+type ParcelFeature = { attributes?: { Area?: unknown }; geometry?: { rings?: number[][][] } };
+
+async function fetchParcel(point: LatLng): Promise<Parcel | null> {
+  const params = new URLSearchParams({
+    geometry: `${point.lng},${point.lat}`,
+    geometryType: "esriGeometryPoint",
+    inSR: "4326",
+    spatialRel: "esriSpatialRelIntersects",
+    outFields: "Area",
+    returnGeometry: "true",
+    outSR: "4326",
+    f: "json",
+  });
+  try {
+    const res = await fetch(`${PARCELS_URL}?${params}`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { features?: ParcelFeature[] };
+    return pickParcel(point, data.features ?? []);
+  } catch {
+    return null;
+  }
+}
+
+// Several parcels can touch the same point (an original land and the smaller plots
+// it was divided into, or two plots sharing a border). Keep only the parcels whose
+// boundary really contains the point, and take the smallest one: that is the plot clicked.
+function insideRing(point: LatLng, ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > point.lat !== yj > point.lat && point.lng < ((xj - xi) * (point.lat - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+export function pickParcel(point: LatLng, features: ParcelFeature[]): Parcel | null {
+  let best: Parcel | null = null;
+  for (const feature of features) {
+    const area = Number(feature.attributes?.Area);
+    // the first ring is the outer boundary; ArcGIS gives [longitude, latitude] pairs
+    const ring = feature.geometry?.rings?.[0];
+    if (!Number.isFinite(area) || area <= 0 || !ring || ring.length < 4) continue;
+    if (!insideRing(point, ring)) continue;
+    if (!best || area < best.area) {
+      best = { area: Math.round(area), outline: ring.map(([lng, lat]) => ({ lat, lng })) };
+    }
+  }
+  return best;
+}
+
+// Looks up the plot under a point: its real land area and boundary.
+// The orientation is still a sample value, and the area falls back to a sample value
+// when no parcel is found at the point. The neighborhood is loaded separately
+// (fetchNeighborhood) so a slow answer there never delays drawing the plot.
 export async function lookupPlot(point: LatLng): Promise<PlotInfo> {
-  await new Promise((resolve) => setTimeout(resolve, 450));
+  const parcel = await fetchParcel(point);
+  const parcelArea = parcel?.area ?? null;
   const hash = hashPoint(point);
-  const width = 16 + (hash % 13);
-  const depth = 20 + ((hash >>> 4) % 12);
+  const sampleWidth = 16 + (hash % 13);
+  const sampleDepth = 20 + ((hash >>> 4) % 12);
+  const area = parcelArea ?? Math.round(sampleWidth * sampleDepth);
+  // the plot drawn on the map keeps the same proportions as the results page (depth = 1.15 × width)
+  const width = parcelArea ? Math.round(Math.sqrt(parcelArea / 1.15) * 10) / 10 : sampleWidth;
+  const depth = parcelArea ? Math.round(width * 1.15 * 10) / 10 : sampleDepth;
   return {
     width,
     depth,
-    area: Math.round(width * depth),
-    neighborhood: NEIGHBORHOODS[hash % NEIGHBORHOODS.length],
+    area,
+    outline: parcel?.outline ?? null,
     orientation: DIRECTIONS[(hash >>> 8) % DIRECTIONS.length],
   };
 }
