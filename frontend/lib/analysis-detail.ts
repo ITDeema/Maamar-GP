@@ -4,6 +4,9 @@
  * with real requests. The dashboard will not need to change.
  */
 
+import { fetchWind } from "@/lib/site-api";
+import type { WindDirection } from "@/lib/site-api";
+
 // The four sides of the plot. Setbacks are set per side.
 export type Side = "north" | "east" | "south" | "west";
 export const SIDES: Side[] = ["north", "east", "south", "west"];
@@ -24,6 +27,11 @@ export const FACADES: Facade[] = [
 export function isSide(facade: Facade): facade is Side {
   return (SIDES as Facade[]).includes(facade);
 }
+
+const WIND_FACADE: Record<WindDirection, Facade> = {
+  N: "north", NE: "northeast", E: "east", SE: "southeast",
+  S: "south", SW: "southwest", W: "west", NW: "northwest",
+};
 
 export type FacadeIndicators = {
   radiation: number; // kWh/m²/day
@@ -148,7 +156,19 @@ export async function fetchIndicators(
 ): Promise<IndicatorsData> {
   await wait(700, options.signal);
   if (options.fail) throw new Error("Indicators could not be loaded");
-  return buildIndicators(id);
+    const data = buildIndicators(id);
+
+  // The wind is real: it comes from our backend (ERA5-Land). If the backend is
+  // not running we keep the sample values, and the rest of the dashboard still works.
+  try {
+    const wind = await fetchWind(options.signal);
+    data.site.windFrom = WIND_FACADE[wind.dominant];
+    data.site.windSpeed = wind.meanSpeed;
+  } catch (error) {
+    if (options.signal.aborted) throw error;
+    console.warn("Wind error:", error);
+  }
+  return data;
 }
 
 export function getConstraints(): Constraints {
