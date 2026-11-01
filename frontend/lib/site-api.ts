@@ -10,6 +10,15 @@ export type SunPath = {
   arcs: { summer: SunPoint[]; equinox: SunPoint[]; winter: SunPoint[] };
 };
 
+export type WindDirection = "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
+export type Wind = {
+  frequencies: Record<WindDirection, number>; // % of the windy hours, by the direction the wind comes from
+  dominant: WindDirection; // the direction the wind comes from most often
+  meanSpeed: number; // m/s
+  calmShare: number; // % of the hours below 0.5 m/s
+  hours: number;
+};
+
 export type Poi = { id: string; name: string; lat: number; lon: number; cats: string[] };
 
 export type RawBuilding = {
@@ -65,6 +74,20 @@ export async function fetchSunPath(lat: number, lng: number, signal?: AbortSigna
     if (!res.ok) throw new Error(`Sun path request failed (${res.status})`);
     const data = (await res.json()) as SunPath;
     if (!data.arcs) throw new Error("Sun path response has no arcs");
+    return data;
+  } finally {
+    request.done();
+  }
+}
+
+// The wind is the same for every plot (one ERA5-Land point for Riyadh), so no coordinates are sent.
+export async function fetchWind(signal?: AbortSignal): Promise<Wind> {
+  const request = limited(signal, 30_000);
+  try {
+    const res = await fetch(`${API_URL}/wind`, { signal: request.signal });
+    if (!res.ok) throw new Error(`Wind request failed (${res.status})`);
+    const data = (await res.json()) as Wind;
+    if (!data.frequencies || !data.dominant) throw new Error("Wind response is incomplete");
     return data;
   } finally {
     request.done();
