@@ -5,7 +5,7 @@ If the team already has a FastAPI app, add two lines to it instead:
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from sun_wind_api import router as sun_wind_router
 from services_api import router as services_router
 
 app = FastAPI(title="Maamar API")
@@ -16,3 +16,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(services_router)
+app.include_router(sun_wind_router)
