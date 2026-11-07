@@ -1,5 +1,7 @@
 import type { LatLng } from "@/lib/geo";
 import type { Lang } from "@/lib/i18n";
+import { fetchStreetsAround, findFacades, streetsForPlot } from "@/lib/plot-facade";
+import type { Facade } from "@/lib/plot-facade";
 
 /*
  * TEMPORARY MOCK DATA LAYER.
@@ -22,20 +24,14 @@ export type Direction8 =
   | "west"
   | "northWest";
 
-const DIRECTIONS: Direction8[] = [
-  "north",
-  "northEast",
-  "east",
-  "southEast",
-  "south",
-  "southWest",
-  "west",
-  "northWest",
-];
-
 // The neighborhood is real: it comes from OpenStreetMap (Nominatim reverse geocoding),
 // in the screen language. null means it could not be found for this point.
 const NEIGHBORHOOD_KEYS = ["neighbourhood", "suburb", "quarter", "city_district"] as const;
+
+// "Al Malqa District" → "Al Malqa": only the name of the neighborhood is shown
+function cleanNeighborhood(name: string): string {
+  return name.replace(/^\s*district\s+/i, "").replace(/\s+district\s*$/i, "").trim() || name;
+}
 
 export async function fetchNeighborhood(point: LatLng, lang: Lang): Promise<string | null> {
   const url =
@@ -47,7 +43,7 @@ export async function fetchNeighborhood(point: LatLng, lang: Lang): Promise<stri
     const data = (await res.json()) as { address?: Record<string, string | undefined> };
     for (const key of NEIGHBORHOOD_KEYS) {
       const name = data.address?.[key];
-      if (name) return name;
+      if (name) return cleanNeighborhood(name);
     }
     return null;
   } catch {
@@ -60,7 +56,7 @@ export type PlotInfo = {
   depth: number; // meters
   area: number; // square meters
   outline: LatLng[] | null; // the real plot boundary, when the parcel was found
-  orientation: Direction8;
+  orientation: Direction8 | null; // the main facade; null when the plot was not found
 };
 
 function hashPoint(point: LatLng): number {
@@ -130,12 +126,25 @@ export function pickParcel(point: LatLng, features: ParcelFeature[]): Parcel | n
   return best;
 }
 
-// Looks up the plot under a point: its real land area and boundary.
-// The orientation is still a sample value, and the area falls back to a sample value
-// when no parcel is found at the point. The neighborhood is loaded separately
-// (fetchNeighborhood) so a slow answer there never delays drawing the plot.
+const FACADE_DIRECTION: Record<Facade, Direction8> = {
+  N: "north",
+  NE: "northEast",
+  E: "east",
+  SE: "southEast",
+  S: "south",
+  SW: "southWest",
+  W: "west",
+  NW: "northWest",
+};
+
+// Looks up the plot under a point: its real land area, boundary and main facade
+// (the facade on the widest street, found the same way as the dataset notebook).
+// The area falls back to a sample value when no parcel is found at the point.
+// The neighborhood is loaded separately (fetchNeighborhood) so a slow answer there
+// never delays drawing the plot.
 export async function lookupPlot(point: LatLng): Promise<PlotInfo> {
-  const parcel = await fetchParcel(point);
+  // the streets around the point load at the same time as the plot
+  const [parcel, nearbyStreets] = await Promise.all([fetchParcel(point), fetchStreetsAround(point)]);
   const parcelArea = parcel?.area ?? null;
   const hash = hashPoint(point);
   const sampleWidth = 16 + (hash % 13);
@@ -144,13 +153,15 @@ export async function lookupPlot(point: LatLng): Promise<PlotInfo> {
   // the plot drawn on the map keeps the same proportions as the results page (depth = 1.15 × width)
   const width = parcelArea ? Math.round(Math.sqrt(parcelArea / 1.15) * 10) / 10 : sampleWidth;
   const depth = parcelArea ? Math.round(width * 1.15 * 10) / 10 : sampleDepth;
-  return {
-    width,
-    depth,
-    area,
-    outline: parcel?.outline ?? null,
-    orientation: DIRECTIONS[(hash >>> 8) % DIRECTIONS.length],
-  };
+
+  let orientation: Direction8 | null = null;
+  if (parcel?.outline) {
+    const streets = await streetsForPlot(point, parcel.outline, nearbyStreets);
+    const { main } = findFacades(parcel.outline, streets ?? []);
+    orientation = main ? FACADE_DIRECTION[main] : null;
+  }
+
+  return { width, depth, area, outline: parcel?.outline ?? null, orientation };
 }
 
 /* ---------- running an analysis ---------- */

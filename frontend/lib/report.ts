@@ -47,7 +47,14 @@ export function buildReportHtml(input: ReportInput): string {
   const rows = FACADES.map((facade) => {
     const cells = METRICS.map((metric) => {
       const value = input.indicators.facades[facade][metric];
-      const text = detailed ? formatMetric(metric, value) : c.indicators.levels[levelOf(metric, value)];
+      const text =
+        value === null
+          ? c.indicators.noWall
+          : detailed
+            ? formatMetric(metric, value)
+            : metric === "wind"
+              ? c.indicators.windLevels[levelOf(metric, value)]
+              : c.indicators.levels[levelOf(metric, value)];
       return `<td>${escapeHtml(text)}</td>`;
     }).join("");
     return `<tr><th>${escapeHtml(c.facade.names[facade])}</th>${cells}</tr>`;

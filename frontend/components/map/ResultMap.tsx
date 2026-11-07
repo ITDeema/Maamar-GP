@@ -3,9 +3,11 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { FACADES, heatColor, isSide } from "@/lib/analysis-detail";
+import { FACADES, isSide, radiationColor } from "@/lib/analysis-detail";
 import type { Facade, Side } from "@/lib/analysis-detail";
 import type { LatLng } from "@/lib/geo";
+import { plotCorners, plotEdges } from "@/lib/plot-facade";
+import type { Facade as Direction } from "@/lib/plot-facade";
 
 type ResultMapProps = {
   lat: number; // plot center
@@ -13,10 +15,11 @@ type ResultMapProps = {
   width: number; // plot width in meters
   depth: number; // plot depth in meters
   setbacks: Record<Side, number>;
-  heat: Record<Facade, number> | null; // 0..1 per façade, or null while unknown
+  heat: Record<Facade, number | null> | null; // summer radiation per façade, kWh/m²/day (null: no wall faces it), or null while unknown
   selected: Facade;
   tips: Record<Facade, string>; // hover text per façade
   label: string;
+  outline?: LatLng[] | null; // the real plot boundary; when missing, a square from width and depth is drawn
 };
 
 const LETTERS: Record<Facade, string> = {
@@ -30,6 +33,140 @@ const LETTERS: Record<Facade, string> = {
   northwest: "NW",
 };
 const NEUTRAL = "#9AA7B4";
+
+// The plot's lines and dots show their value on hover, but keep the normal cursor (no hand).
+function plainCursor(event: L.LeafletEvent) {
+  const element = (event.target as L.Path).getElement() as SVGElement | undefined;
+  element?.style.setProperty("cursor", "default");
+}
+
+// A façade with no wall facing it (null once the values have loaded) is not drawn.
+function hasNoWall(heat: Record<Facade, number | null> | null, facade: Facade): boolean {
+  return heat !== null && heat[facade] === null;
+}
+
+function colorFor(heat: Record<Facade, number | null> | null, facade: Facade): string {
+  const value = heat?.[facade];
+  return value === null || value === undefined ? NEUTRAL : radiationColor(value);
+}
+
+const FACADE_OF: Record<Direction, Facade> = {
+  N: "north",
+  NE: "northeast",
+  E: "east",
+  SE: "southeast",
+  S: "south",
+  SW: "southwest",
+  W: "west",
+  NW: "northwest",
+};
+
+function letterIcon(facade: Facade, isSelected: boolean) {
+  return L.divIcon({
+    className: "",
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    html: `<div style="width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;font:700 11px sans-serif;background:${isSelected ? "#C08649" : "#fff"};color:#072A4A;border:1px solid rgba(7,42,74,.3);box-shadow:0 1px 4px rgba(7,42,74,.25)">${LETTERS[facade]}</div>`,
+  });
+}
+
+// The real plot, drawn like the square: all eight façades show.
+// Each edge is a colored line for the direction it faces (from true north),
+// each corner a colored dot for the direction it points to, and the eight letters sit around the plot.
+function drawOutline(
+  group: L.LayerGroup,
+  outline: LatLng[],
+  heat: Record<Facade, number | null> | null,
+  selected: Facade,
+  tips: Record<Facade, string>,
+) {
+  L.polygon(
+    outline.map((p) => [p.lat, p.lng] as L.LatLngTuple),
+    { color: "#072A4A", weight: 2, dashArray: "6 6", interactive: false, fillColor: "#072A4A", fillOpacity: 0.08 },
+  ).addTo(group);
+
+  const colorOf = (facade: Facade) => colorFor(heat, facade);
+  const edges = plotEdges(outline);
+  const onEdge = new Set<Facade>();
+  for (const edge of edges) {
+    const facade = FACADE_OF[edge.facade];
+    const isSelected = facade === selected;
+    onEdge.add(facade);
+    if (hasNoWall(heat, facade)) continue;
+    L.polyline(
+      [
+        [edge.from.lat, edge.from.lng],
+        [edge.to.lat, edge.to.lng],
+      ],
+      { color: colorOf(facade), weight: isSelected ? 12 : 7, opacity: isSelected ? 1 : 0.8, lineCap: "round" },
+    )
+      .bindTooltip(tips[facade], { sticky: true })
+      .on("add", plainCursor)
+      .addTo(group);
+  }
+
+  // the directions no edge faces are shown on the sharpest corner pointing that way
+  const corners = new Map<Facade, ReturnType<typeof plotCorners>[number]>();
+  for (const corner of plotCorners(edges)) {
+    const facade = FACADE_OF[corner.facade];
+    if (onEdge.has(facade)) continue;
+    const old = corners.get(facade);
+    if (!old || corner.turn > old.turn) corners.set(facade, corner);
+  }
+  corners.forEach((corner, facade) => {
+    if (hasNoWall(heat, facade)) return;
+    const isSelected = facade === selected;
+    L.circleMarker([corner.at.lat, corner.at.lng], {
+      radius: isSelected ? 13 : 9,
+      color: isSelected ? "#072A4A" : "#FFFFFF",
+      weight: isSelected ? 3 : 2,
+      fillColor: colorOf(facade),
+      fillOpacity: 1,
+    })
+      .bindTooltip(tips[facade], { sticky: true })
+      .on("add", plainCursor)
+      .addTo(group);
+  });
+
+  // the eight letters on a circle around the plot, like a compass
+  const center = {
+    lat: outline.reduce((sum, p) => sum + p.lat, 0) / outline.length,
+    lng: outline.reduce((sum, p) => sum + p.lng, 0) / outline.length,
+  };
+  const metersX = 111_320 * Math.cos((center.lat * Math.PI) / 180);
+  const radius =
+    Math.max(...outline.map((p) => Math.hypot((p.lng - center.lng) * metersX, (p.lat - center.lat) * 111_320))) + 4;
+  FACADES.forEach((facade, i) => {
+    const angle = (i * 45 * Math.PI) / 180; // clockwise from north
+    L.marker(at(center, radius * Math.sin(angle), radius * Math.cos(angle)), {
+      interactive: false,
+      keyboard: false,
+      icon: letterIcon(facade, facade === selected),
+    }).addTo(group);
+  });
+}
+
+// A compass in the top corner: the map is never rotated, so north is always up.
+function compassControl() {
+  const Compass = L.Control.extend({
+    onAdd() {
+      const box = L.DomUtil.create("div");
+      box.setAttribute("aria-hidden", "true");
+      box.style.cssText =
+        "width:56px;height:56px;border-radius:999px;background:#fff;border:1px solid rgba(7,42,74,.25);box-shadow:0 1px 4px rgba(7,42,74,.25)";
+      box.innerHTML = `<svg viewBox="0 0 56 56" width="56" height="56">
+        <text x="28" y="13" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="11" fill="#072A4A">N</text>
+        <polygon points="28,16 33,30 28,27 23,30" fill="#C08649"/>
+        <polygon points="28,44 33,30 28,33 23,30" fill="#9AA7B4"/>
+        <text x="47" y="32" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#072A4A">E</text>
+        <text x="28" y="53" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#072A4A">S</text>
+        <text x="9" y="32" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#072A4A">W</text>
+      </svg>`;
+      return box;
+    },
+  });
+  return new Compass({ position: "topright" });
+}
 
 // Meters east (x) and north (y) from the plot center -> map coordinates.
 function at(center: LatLng, x: number, y: number): L.LatLngTuple {
@@ -49,7 +186,9 @@ export default function ResultMap({
   selected,
   tips,
   label,
+  outline,
 }: ResultMapProps) {
+  const realOutline = outline && outline.length >= 3 ? outline : null;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const groupRef = useRef<L.LayerGroup | null>(null);
@@ -66,6 +205,7 @@ export default function ResultMap({
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
     groupRef.current = L.layerGroup().addTo(map);
+    compassControl().addTo(map);
     mapRef.current = map;
     return () => {
       map.remove();
@@ -81,9 +221,11 @@ export default function ResultMap({
     const map = mapRef.current;
     if (!map) return;
     const center = { lat, lng };
-    const bounds = L.latLngBounds([at(center, -width / 2, -depth / 2), at(center, width / 2, depth / 2)]);
+    const bounds = realOutline
+      ? L.latLngBounds(realOutline.map((p) => [p.lat, p.lng] as L.LatLngTuple))
+      : L.latLngBounds([at(center, -width / 2, -depth / 2), at(center, width / 2, depth / 2)]);
     map.fitBounds(bounds, { padding: [56, 56], maxZoom: 21 });
-  }, [lat, lng, width, depth]);
+  }, [lat, lng, width, depth, realOutline]);
 
   // draw the plot, the building and the colored façades
   useEffect(() => {
@@ -91,12 +233,17 @@ export default function ResultMap({
     if (!group) return;
     group.clearLayers();
 
+    if (realOutline) {
+      drawOutline(group, realOutline, heat, selected, tips);
+      return;
+    }
+
     const center = { lat, lng };
     const hw = width / 2;
     const hd = depth / 2;
     L.polygon(
       [at(center, -hw, hd), at(center, hw, hd), at(center, hw, -hd), at(center, -hw, -hd)],
-      { color: "#072A4A", weight: 2, dashArray: "6 6", fillOpacity: 0 },
+      { color: "#072A4A", weight: 2, dashArray: "6 6", interactive: false, fillOpacity: 0 },
     ).addTo(group);
 
     const x0 = -hw + setbacks.west;
@@ -109,6 +256,7 @@ export default function ResultMap({
     const sw = at(center, x0, y0);
     L.polygon([nw, ne, se, sw], {
       stroke: false,
+      interactive: false,
       fillColor: "#072A4A",
       fillOpacity: 0.12,
     }).addTo(group);
@@ -128,7 +276,8 @@ export default function ResultMap({
     };
     FACADES.forEach((facade) => {
       const isSelected = facade === selected;
-      const color = heat ? heatColor(heat[facade]) : NEUTRAL;
+      if (hasNoWall(heat, facade)) return;
+      const color = colorFor(heat, facade);
       if (isSide(facade)) {
         L.polyline(sides[facade], {
           color,
@@ -137,21 +286,23 @@ export default function ResultMap({
           lineCap: "round",
         })
           .bindTooltip(tips[facade], { sticky: true })
-          .addTo(group);
+          .on("add", plainCursor)
+      .addTo(group);
       }
     });
     FACADES.forEach((facade) => {
-      if (isSide(facade)) return;
+      if (isSide(facade) || hasNoWall(heat, facade)) return;
       const isSelected = facade === selected;
       L.circleMarker(corners[facade], {
         radius: isSelected ? 13 : 9,
         color: isSelected ? "#072A4A" : "#FFFFFF",
         weight: isSelected ? 3 : 2,
-        fillColor: heat ? heatColor(heat[facade]) : NEUTRAL,
+        fillColor: colorFor(heat, facade),
         fillOpacity: 1,
       })
         .bindTooltip(tips[facade], { sticky: true })
-        .addTo(group);
+        .on("add", plainCursor)
+      .addTo(group);
     });
 
     // compass letters around the plot
@@ -171,15 +322,10 @@ export default function ResultMap({
       L.marker(at(center, x, y), {
         interactive: false,
         keyboard: false,
-        icon: L.divIcon({
-          className: "",
-          iconSize: [28, 28],
-          iconAnchor: [14, 14],
-          html: `<div style="width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;font:700 11px sans-serif;background:${isSelected ? "#C08649" : "#fff"};color:#072A4A;border:1px solid rgba(7,42,74,.3);box-shadow:0 1px 4px rgba(7,42,74,.25)">${LETTERS[facade]}</div>`,
-        }),
+        icon: letterIcon(facade, isSelected),
       }).addTo(group);
     });
-  }, [lat, lng, width, depth, setbacks, heat, selected, tips]);
+  }, [lat, lng, width, depth, setbacks, heat, selected, tips, realOutline]);
 
   return <div ref={containerRef} role="application" aria-label={label} className="h-full w-full" />;
 }

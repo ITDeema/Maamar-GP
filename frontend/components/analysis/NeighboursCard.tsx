@@ -2,14 +2,17 @@
 
 import Card from "@/components/Card";
 import type { Facade } from "@/lib/analysis-detail";
-import { neighboursFor } from "@/lib/neighbourhood";
+import { neighboursFor, neighboursFrom } from "@/lib/neighbourhood";
+import type { FacadeNeighbours } from "@/lib/site-api";
 import { fill, useResultsCopy } from "@/lib/results-copy";
 
 // Architects: what stands next to the selected façade (kind, height, distance).
 // Only what exists is listed.
-export default function NeighboursCard({ facade }: { facade: Facade }) {
+// The real neighbours come from the backend (dataset columns); without them, sample rows are shown.
+export default function NeighboursCard({ facade, data }: { facade: Facade; data: FacadeNeighbours | null }) {
   const c = useResultsCopy();
-  const rows = neighboursFor(facade);
+  const real = data ? neighboursFrom(data) : null;
+  const rows = real === null ? neighboursFor(facade) : real === "noWall" ? [] : real;
 
   return (
     <Card>
@@ -18,7 +21,9 @@ export default function NeighboursCard({ facade }: { facade: Facade }) {
         {fill(c.neighbours.hint, { facade: c.facade.names[facade] })}
       </p>
 
-      {rows.length === 0 ? (
+      {real === "noWall" ? (
+        <p className="text-sm text-navy-900/70">{c.indicators.noWall}</p>
+      ) : rows.length === 0 ? (
         <p className="text-sm text-navy-900/70">{c.neighbours.empty}</p>
       ) : (
         <div className="overflow-x-auto">
@@ -38,7 +43,7 @@ export default function NeighboursCard({ facade }: { facade: Facade }) {
                     <bdi>{row.height == null ? "—" : `${row.height} m`}</bdi>
                   </td>
                   <td className="py-2 text-start">
-                    <bdi>{`${row.distance} m`}</bdi>
+                    <bdi>{row.distance == null ? "—" : `${row.distance} m`}</bdi>
                   </td>
                 </tr>
               ))}

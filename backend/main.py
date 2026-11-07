@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sun_wind_api import router as sun_wind_router
 from services_api import router as services_router
+from facade_indicators_api import router as facade_router
 
 app = FastAPI(title="Maamar API")
 app.add_middleware(
@@ -17,3 +18,4 @@ app.add_middleware(
 )
 app.include_router(services_router)
 app.include_router(sun_wind_router)
+app.include_router(facade_router)

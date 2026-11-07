@@ -94,6 +94,68 @@ export async function fetchWind(signal?: AbortSignal): Promise<Wind> {
   }
 }
 
+// Per-façade indicators of the plot from our backend, same calculation as the dataset
+// (the plot, its façades, the building and the solar radiation on each wall).
+export type FacadeDirection = "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
+export type SeasonRadiation = {
+  total: number | null; // kWh/m² over the season (the dataset value)
+  perDay: number | null; // kWh/m²/day
+  blocked: number | null; // 0..1 share of the sun blocked by the neighbours
+};
+// What stands next to a façade (dataset columns for that direction).
+export type FacadeNeighbours = {
+  use: string | null; // adjoining parcel use (ParcelSub), "شارع", or "لا يوجد" (no edge this way); null if unknown
+  across: string | null; // use across the street, or "لا يوجد"
+  streetWidth: number | null; // m
+  streetClass: string | null;
+  streetName: string | null;
+  nearestDistance: number; // m from the plot boundary to the nearest building this way; 300 = none within 300 m
+  nearestHeight: number; // m, 0 = none
+};
+
+export type FacadeIndicatorsResponse = {
+  mainFacade: FacadeDirection;
+  buildingSource: "measured_footprint" | "envelope_measured_h" | "regulation_envelope";
+  buildingHeight: number; // m
+  skyView: number; // 0..1, dataset SVF: the plot's sky view at ground level (not shown yet)
+  site: {
+    summerMaxTemp: number; // °C, mean daily maximum in June–August (EPW temp_air)
+    avgHeight: number | null; // m, all neighbouring buildings within 300 m
+    maxHeight: number | null; // m, tallest of the neighbours per direction (the neighbours card)
+  };
+  facades: Record<
+    FacadeDirection,
+    {
+      onStreet: boolean;
+      streetWidth: number | null; // m
+      radiation: { summer: SeasonRadiation; winter: SeasonRadiation }; // null when no wall faces this way
+      shade: { summer: number | null; equinox: number | null; winter: number | null }; // 0..1, dataset Shaded_Pct
+      sky: number | null; // 0..1, sky view of the wall (website only, not a dataset column)
+      windBlock: number | null; // degrees, wind shelter of the wall (website only, not a dataset column)
+      neighbours: FacadeNeighbours; // dataset neighbor_use, across_use, street_*, dist, height
+    }
+  >;
+};
+
+export async function fetchFacadeIndicators(
+  lat: number,
+  lng: number,
+  signal?: AbortSignal,
+): Promise<FacadeIndicatorsResponse> {
+  const request = limited(signal, 60_000);
+  try {
+    const res = await fetch(`${API_URL}/facade-indicators?latitude=${lat}&longitude=${lng}`, {
+      signal: request.signal,
+    });
+    if (!res.ok) throw new Error(`Facade indicators request failed (${res.status})`);
+    const data = (await res.json()) as FacadeIndicatorsResponse;
+    if (!data.facades) throw new Error("Facade indicators response has no facades");
+    return data;
+  } finally {
+    request.done();
+  }
+}
+
 // Nearest services (mosque, school...) from our backend, same calculation as the dataset.
 // Throws on failure so the card can show its own error and a retry button.
 export async function fetchServices(lat: number, lng: number, signal?: AbortSignal): Promise<ServicesResponse> {

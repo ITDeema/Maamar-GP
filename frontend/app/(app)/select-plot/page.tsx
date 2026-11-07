@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import Badge from "@/components/Badge";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Input from "@/components/Input";
@@ -12,7 +11,7 @@ import SegmentedControl from "@/components/SegmentedControl";
 import StatusMessage from "@/components/analysis/StatusMessage";
 import { usePlotCopy } from "@/components/analysis/usePlotCopy";
 import type { MapFocus } from "@/components/map/PlotPickerMap";
-import { USE_MOCK_DATA, fetchNeighborhood, lookupPlot } from "@/lib/analysis";
+import { fetchNeighborhood, lookupPlot } from "@/lib/analysis";
 import { useT } from "@/lib/i18n";
 import type { PlotInfo } from "@/lib/analysis";
 import { formatCoordinates, isInsideRiyadh, parseCoordinates } from "@/lib/geo";
@@ -223,7 +222,6 @@ export default function SelectPlotPage() {
                     <Card>
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-sm font-bold">{c.plotTitle}</h2>
-              {USE_MOCK_DATA && plot && <Badge tone="caution">{c.mockTag}</Badge>}
             </div>
             {!point ? (
               <p className="text-sm text-navy-900/70">{c.plotEmpty}</p>
@@ -244,7 +242,7 @@ export default function SelectPlotPage() {
                       }
                     />
                     <Row label={c.neighborhood} value={neighborhood === undefined ? "…" : (neighborhood ?? c.unknown)} />
-                    <Row label={c.orientation} value={c.directions[plot.orientation]} />
+                    <Row label={c.orientation} value={plot.orientation ? c.directions[plot.orientation] : c.unknown} />
                   </>
                 ) : (
                   <p className="text-navy-900/70">{c.plotLoading}</p>

@@ -1,2 +1,5 @@
 __pycache__/
 
+# large data made on each computer (see data/README.txt)
+data/gba_riyadh.parquet
+data/gba_tiles/

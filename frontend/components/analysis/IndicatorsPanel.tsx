@@ -11,13 +11,22 @@ import {
   formatMetric,
   levelOf,
   metricFraction,
+  radiationColor,
   toneOf,
 } from "@/lib/analysis-detail";
 import type { Facade, IndicatorsData, SiteIndicators } from "@/lib/analysis-detail";
 import { USE_MOCK_DATA } from "@/lib/analysis";
 import { fill, useResultsCopy } from "@/lib/results-copy";
-import { TONE_FILL } from "@/lib/tone-styles";
+import type { MetricKey, Level } from "@/lib/analysis-detail";
+import { RADIATION_BADGE, SKY_BADGE, levelFill } from "@/lib/tone-styles";
 import type { Role } from "@/lib/user";
+
+// The words shown for a level: wind shelter has its own (protected / exposed), the others low / medium / high.
+function useLevelText() {
+  const c = useResultsCopy();
+  return (metric: MetricKey, level: Level) =>
+    metric === "wind" ? c.indicators.windLevels[level] : c.indicators.levels[level];
+}
 
 export type IndicatorsState =
   | { status: "loading" }
@@ -34,6 +43,7 @@ type IndicatorsPanelProps = {
 // Homeowners see simple levels; architects see precise numbers.
 export default function IndicatorsPanel({ state, facade, role, onRetry }: IndicatorsPanelProps) {
   const c = useResultsCopy();
+  const levelText = useLevelText();
   const detailed = role === "architect";
 
   return (
@@ -80,6 +90,14 @@ export default function IndicatorsPanel({ state, facade, role, onRetry }: Indica
           <dl className="grid gap-4">
             {METRICS.map((metric) => {
               const value = state.data.facades[facade][metric];
+              if (value === null || value === undefined) {
+                return (
+                  <div key={metric} className="flex items-center justify-between gap-3 text-sm">
+                    <dt className="text-navy-900/80">{c.indicators.metrics[metric]}</dt>
+                    <dd className="text-navy-900/70">{c.indicators.noWall}</dd>
+                  </div>
+                );
+              }
               const level = levelOf(metric, value);
               return (
                 <div key={metric}>
@@ -89,15 +107,24 @@ export default function IndicatorsPanel({ state, facade, role, onRetry }: Indica
                       {detailed ? (
                         <bdi>{formatMetric(metric, value)}</bdi>
                       ) : (
-                        <Badge tone={toneOf(metric, level)}>{c.indicators.levels[level]}</Badge>
+                        metric === "radiation" || metric === "sky" ? (
+                          <span className={`inline-block rounded-pill px-3 py-1 text-xs font-semibold ${metric === "sky" ? SKY_BADGE[level] : RADIATION_BADGE[level]}`}>
+                            {c.indicators.levels[level]}
+                          </span>
+                        ) : (
+                          <Badge tone={toneOf(metric, level)}>{levelText(metric, level)}</Badge>
+                        )
                       )}
                     </dd>
                   </div>
                    {detailed ? (
                     <div className="mt-2 h-1.5 overflow-hidden rounded-pill bg-navy-900/10">
                       <div
-                        className={`h-full rounded-pill transition-all duration-500 ${TONE_FILL[toneOf(metric, level)]}`}
-                        style={{ width: `${metricFraction(metric, value) * 100}%` }}
+                        className={`h-full rounded-pill transition-all duration-500 ${metric === "radiation" ? "" : levelFill(metric, level)}`}
+                        style={{
+                          width: `${metricFraction(metric, value) * 100}%`,
+                          ...(metric === "radiation" ? { backgroundColor: radiationColor(value) } : {}),
+                        }}
                       />
                     </div>
                   ) : (
@@ -105,9 +132,10 @@ export default function IndicatorsPanel({ state, facade, role, onRetry }: Indica
                       <LevelMeter
                         level={level}
                         tone={toneOf(metric, level)}
+                        fill={levelFill(metric, level)}
                         label={fill(c.summary.meterLabel, {
                           metric: c.indicators.metrics[metric],
-                          level: c.indicators.levels[level],
+                          level: levelText(metric, level),
                         })}
                       />
                     </div>
@@ -132,9 +160,8 @@ export function SiteIndicatorsCard({ site }: { site: SiteIndicators }) {
     { label: s.windFrom, value: c.facade.names[site.windFrom] },
     { label: s.temperature, value: `${site.temperature} °C` },
     { label: s.density, value: `${Math.round(site.density * 100)}% · ${s.densityLevels[densityLevel]}` },
-    { label: s.avgHeight, value: `${site.avgHeight} m` },
-    { label: s.maxHeight, value: `${site.maxHeight} m` },
-    { label: s.noise, value: `${site.noise} dB` },
+    { label: s.avgHeight, value: site.avgHeight === null ? "—" : `${site.avgHeight} m` },
+    { label: s.maxHeight, value: site.maxHeight === null ? "—" : `${site.maxHeight} m` },
   ];
 
   return (
@@ -153,3 +180,4 @@ export function SiteIndicatorsCard({ site }: { site: SiteIndicators }) {
     </Card>
   );
 }
+

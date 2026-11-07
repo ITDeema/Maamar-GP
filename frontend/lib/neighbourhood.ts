@@ -1,4 +1,5 @@
 import type { Facade, Level, Tone } from "@/lib/analysis-detail";
+import type { FacadeNeighbours } from "@/lib/site-api";
 
 /* ---------- gauges (noise and density) ---------- */
 
@@ -29,8 +30,23 @@ export function densityFraction(density: number): number {
 
 /* ---------- neighbours of the selected façade ---------- */
 
-export type NeighbourKind = "street" | "villa" | "building" | "land";
-export type Neighbour = { kind: NeighbourKind; height: number | null; distance: number }; // m
+export type NeighbourKind =
+  | "street"
+  | "villa"
+  | "building"
+  | "land"
+  // land uses of the Riyadh parcels (ParcelSub), as in the dataset
+  | "residential"
+  | "commercial"
+  | "public_services"
+  | "public_utilities"
+  | "mixed_use"
+  | "industrial"
+  | "agricultural"
+  | "unplanned"
+  | "historic"
+  | "unknown";
+export type Neighbour = { kind: NeighbourKind; height: number | null; distance: number | null }; // m
 
 const KIND_ORDER: NeighbourKind[] = ["street", "villa", "building", "land"];
 
@@ -71,6 +87,39 @@ const MOCK_NEIGHBOURS: Record<Facade, Neighbour[]> = {
     { kind: "building", height: 12.5, distance: 3 },
   ],
 };
+
+// The dataset's land use names (ParcelSub) -> neighbour kinds.
+const LAND_USE: Record<string, NeighbourKind> = {
+  "سكني": "residential",
+  "تجاري": "commercial",
+  "خدمات عامة": "public_services",
+  "مرافق عامة": "public_utilities",
+  "متعددة الاستخدام": "mixed_use",
+  "صناعي": "industrial",
+  "زراعي": "agricultural",
+  "غير مخططه": "unplanned",
+  "معالم تاريخية": "historic",
+  "أرض فضاء": "land",
+};
+const kindOf = (use: string): NeighbourKind => LAND_USE[use.trim()] ?? "unknown";
+
+// The real neighbours of one façade, from the dataset columns of its direction:
+// the street (and what is across it) or the adjoining parcel, with the nearest building's height and distance.
+// "noWall" when the plot has no edge facing this way (the dataset's "لا يوجد").
+export function neighboursFrom(data: FacadeNeighbours): Neighbour[] | "noWall" {
+  if (!data.use || data.use === "لا يوجد") return "noWall";
+  const hasBuilding = data.nearestHeight > 0 && data.nearestDistance < 300;
+  const building = {
+    height: hasBuilding ? data.nearestHeight : null,
+    distance: hasBuilding ? data.nearestDistance : null,
+  };
+  if (data.use === "شارع") {
+    const rows: Neighbour[] = [{ kind: "street", height: null, distance: data.streetWidth }];
+    if (data.across && data.across !== "لا يوجد") rows.push({ kind: kindOf(data.across), ...building });
+    return rows;
+  }
+  return [{ kind: kindOf(data.use), ...building }];
+}
 
 export function neighboursFor(facade: Facade): Neighbour[] {
   return [...MOCK_NEIGHBOURS[facade]].sort(

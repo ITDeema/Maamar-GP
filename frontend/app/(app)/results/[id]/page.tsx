@@ -20,15 +20,16 @@ import NeighboursCard from "@/components/analysis/NeighboursCard";
 import { usePlotCopy } from "@/components/analysis/usePlotCopy";
 import {
   FACADES,
-  MAX_RADIATION,
   fetchIndicators,
   formatMetric,
   getConstraints,
-  heatColor,
   levelOf,
   plotDimensions,
+  radiationGradient,
 } from "@/lib/analysis-detail";
 import type { Facade } from "@/lib/analysis-detail";
+import { lookupPlot } from "@/lib/analysis";
+import type { LatLng } from "@/lib/geo";
 import FacadePicker from "@/components/analysis/FacadePicker";
 import { formatDate } from "@/lib/format";
 import { useT } from "@/lib/i18n";
@@ -61,6 +62,7 @@ const SiteDiagrams = dynamic(() => import("@/components/analysis/SiteDiagrams"),
 const linkButton =
   "rounded-control border border-navy-900/15 bg-white px-5 py-3 text-sm font-semibold text-navy-900 transition-colors hover:bg-navy-50";
 
+
 type Message = { tone: "success" | "info"; text: string } | null;
 
 function ResultsContent() {
@@ -79,6 +81,22 @@ function ResultsContent() {
 
   const [role, setRole] = useState<Role>(mockUser.role);
   const [facade, setFacade] = useState<Facade>("south");
+  // the real plot boundary for the facade map; the map opens on the plot's main facade
+  const [outline, setOutline] = useState<LatLng[] | null>(null);
+  const resultLat = result?.lat;
+  const resultLng = result?.lng;
+  useEffect(() => {
+    if (resultLat === undefined || resultLng === undefined) return;
+    let active = true;
+    lookupPlot({ lat: resultLat, lng: resultLng }).then((plot) => {
+      if (!active) return;
+      setOutline(plot.outline);
+      if (plot.orientation) setFacade(plot.orientation.toLowerCase() as Facade); // "northEast" → "northeast"
+    });
+    return () => {
+      active = false;
+    };
+  }, [resultLat, resultLng]);
   const [indicators, setIndicators] = useState<IndicatorsState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -92,6 +110,8 @@ function ResultsContent() {
     fetchIndicators(id, {
       fail: demo === "indicators-error" && attempt === 0,
       signal: controller.signal,
+      lat: resultLat,
+      lng: resultLng,
     })
       .then((data) => setIndicators({ status: "ready", data }))
       .catch((error: unknown) => {
@@ -99,7 +119,7 @@ function ResultsContent() {
         setIndicators({ status: "error" });
       });
     return () => controller.abort();
-  }, [id, demo, attempt]);
+  }, [id, demo, attempt, resultLat, resultLng]);
 
   function retryIndicators() {
     setIndicators({ status: "loading" });
@@ -116,8 +136,11 @@ function ResultsContent() {
 
   const heat = useMemo(() => {
     if (!ready) return null;
-    const values = {} as Record<Facade, number>;
-    FACADES.forEach((f) => (values[f] = ready.facades[f].radiation / MAX_RADIATION));
+    const values = {} as Record<Facade, number | null>;
+    FACADES.forEach((f) => {
+      const radiation = ready.facades[f].radiation;
+      values[f] = radiation;
+    });
     return values;
   }, [ready]);
 
@@ -128,7 +151,9 @@ function ResultsContent() {
       const text =
         radiation === undefined
           ? "…"
-          : architect
+          : radiation === null
+            ? c.indicators.noWall
+            : architect
             ? formatMetric("radiation", radiation)
             : c.indicators.levels[levelOf("radiation", radiation)];
       values[f] = `${c.facade.names[f]}: ${text}`;
@@ -289,16 +314,12 @@ function ResultsContent() {
               selected={facade}
               tips={tips}
               label={c.map.label}
+              outline={outline}
             />
           </div>
           <div className="flex items-center gap-3 text-xs text-navy-900/70">
             <span>{c.map.legendLow}</span>
-            <span
-              className="h-2 flex-1 rounded-pill"
-              style={{
-                background: `linear-gradient(90deg, ${heatColor(0)}, ${heatColor(0.5)}, ${heatColor(1)})`,
-              }}
-            />
+            <span className="h-2 flex-1 rounded-pill" style={{ background: radiationGradient(lang === "ar") }} />
             <span>{c.map.legendHigh}</span>
           </div>
           <FacadePicker
@@ -313,8 +334,8 @@ function ResultsContent() {
 
         <div className="flex flex-col gap-5">
           <IndicatorsPanel state={indicators} facade={facade} role={role} onRetry={retryIndicators} />
-          {architect && ready && <NeighboursCard facade={facade} />}
-          {ready && <WindCard site={ready.site} />}
+          {architect && ready && <NeighboursCard facade={facade} data={ready.neighbours?.[facade] ?? null} />}
+          {!architect && ready && <WindCard site={ready.site} />}
         </div>
       </div>
 
