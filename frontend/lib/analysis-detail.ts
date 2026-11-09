@@ -4,9 +4,8 @@
  * with real requests. The dashboard will not need to change.
  */
 
-import { fetchFacadeIndicators, fetchWind } from "@/lib/site-api";
-import type { FacadeNeighbours, WindDirection } from "@/lib/site-api";
-
+import { fetchDensity, fetchFacadeIndicators, fetchWind } from "@/lib/site-api";import type { FacadeNeighbours, WindDirection } from "@/lib/site-api";
+import { fetchNeighborhood } from "@/lib/analysis";
 // The four sides of the plot. Setbacks are set per side.
 export type Side = "north" | "east" | "south" | "west";
 export const SIDES: Side[] = ["north", "east", "south", "west"];
@@ -46,7 +45,8 @@ export type SiteIndicators = {
   windSpeed: number; // m/s
   windFrom: Facade;
   temperature: number; // °C, mean daily maximum in summer (June–August)
-  density: number; // 0..1 urban density
+  density: number | null; // Population density: people/km²
+  densityLevel?: "L" | "M" | "H" | null;
   avgHeight: number | null; // m, mean of the neighbouring buildings within 300 m; null when none
   maxHeight: number | null; // m, tallest of the neighbours per direction; null when none
   noise: number; // dB
@@ -159,6 +159,9 @@ export async function fetchIndicators(
   await wait(700, options.signal);
   if (options.fail) throw new Error("Indicators could not be loaded");
     const data = buildIndicators(id);
+    // Do not show the mock density as real population data.
+     data.site.density = null;
+    data.site.densityLevel = null;
 
   // The wind is real: it comes from our backend (ERA5-Land). If the backend is
   // not running we keep the sample values, and the rest of the dashboard still works.
@@ -170,6 +173,30 @@ export async function fetchIndicators(
     if (options.signal.aborted) throw error;
     console.warn("Wind error:", error);
   }
+  
+  // Population density: match the selected plot to its Arabic neighborhood.
+  if (options.lat !== undefined && options.lng !== undefined) {
+    try {
+      const neighborhood = await fetchNeighborhood(
+        { lat: options.lat, lng: options.lng },
+        "ar"
+      );
+
+      if (neighborhood) {
+        const result = await fetchDensity(
+          neighborhood,
+          options.signal
+        );
+
+        data.site.density = result.density;
+        data.site.densityLevel = result.level;
+      }
+    } catch (error) {
+      if (options.signal.aborted) throw error;
+      console.warn("Density error:", error);
+    }
+  }
+
 
   // Radiation, shade, wind shelter and sky view are real: they come from our backend, the same
   // calculation as the dataset (radiation: summer per day; shade: 21 June; wind shelter and sky view: of each wall).

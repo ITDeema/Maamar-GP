@@ -6,6 +6,7 @@ import Card from "@/components/Card";
 import LevelMeter from "@/components/analysis/LevelMeter";
 import { NoiseGauge } from "@/components/analysis/SiteGauges";
 import StatusMessage from "@/components/analysis/StatusMessage";
+import { densityLevelOf } from "@/lib/neighbourhood";
 import {
   METRICS,
   formatMetric,
@@ -154,12 +155,15 @@ export default function IndicatorsPanel({ state, facade, role, onRetry }: Indica
 export function SiteIndicatorsCard({ site }: { site: SiteIndicators }) {
   const c = useResultsCopy();
   const s = c.site;
-  const densityLevel = site.density < 0.35 ? "low" : site.density < 0.6 ? "medium" : "high";
+  const densityLevel =
+    site.density === null
+     ? null
+     : densityLevelOf(site.density, site.densityLevel);
   const rows: { label: string; value: string }[] = [
     { label: s.windSpeed, value: `${site.windSpeed} m/s` },
     { label: s.windFrom, value: c.facade.names[site.windFrom] },
     { label: s.temperature, value: `${site.temperature} °C` },
-    { label: s.density, value: `${Math.round(site.density * 100)}% · ${s.densityLevels[densityLevel]}` },
+    { label: s.density,value:site.density === null || densityLevel === null? "—": `${Math.round(site.density).toLocaleString()} شخص/كم² · ${s.densityLevels[densityLevel]}`,},
     { label: s.avgHeight, value: site.avgHeight === null ? "—" : `${site.avgHeight} m` },
     { label: s.maxHeight, value: site.maxHeight === null ? "—" : `${site.maxHeight} m` },
   ];

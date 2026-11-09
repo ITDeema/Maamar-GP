@@ -27,18 +27,39 @@ export function NoiseGauge({ site }: { site: SiteIndicators }) {
   );
 }
 
+
 export function DensityGauge({ site }: { site: SiteIndicators }) {
   const c = useResultsCopy();
-  const level = densityLevelOf(site.density);
+
+  // No density data available for this neighborhood
+  if (site.density === null) {
+    return (
+      <Gauge
+        fraction={0}
+        tone="caution"
+        label={c.site.density}
+        levelText="—"
+        valueText="—"
+        ariaLabel={c.site.density}
+      />
+    );
+  }
+
+  const level = densityLevelOf(site.density, site.densityLevel);
   const levelText = c.site.densityLevels[level];
+
   return (
     <Gauge
       fraction={densityFraction(site.density)}
       tone={badnessTone(level)}
       label={c.site.density}
       levelText={levelText}
-      valueText={`${Math.round(site.density * 100)}%`}
-      ariaLabel={fill(c.hood.gaugeLabel, { metric: c.site.density, level: levelText })}
+      valueText={`${Math.round(site.density).toLocaleString()} شخص/كم²`}
+      ariaLabel={fill(c.hood.gaugeLabel, {
+        metric: c.site.density,
+        level: levelText,
+      })}
     />
   );
 }
+
