@@ -8,8 +8,15 @@ export function noiseLevelOf(db: number): Level {
   return db < 50 ? "low" : db < 60 ? "medium" : "high";
 }
 
-export function densityLevelOf(density: number): Level {
-  return density < 0.35 ? "low" : density < 0.6 ? "medium" : "high";
+export function densityLevelOf(
+  density: number,
+  densityLevel?: "L" | "M" | "H" | null,
+): Level {
+  if (densityLevel === "L") return "low";
+  if (densityLevel === "M") return "medium";
+  if (densityLevel === "H") return "high";
+
+  return density <= 4000 ? "low" : density <= 10000 ? "medium" : "high";
 }
 
 // For noise and density, a higher level is worse.
@@ -25,7 +32,10 @@ export function noiseFraction(db: number): number {
 }
 
 export function densityFraction(density: number): number {
-  return clamp(density);
+  const min = 100;
+  const max = 20000;
+
+  return clamp((density - min) / (max - min));
 }
 
 /* ---------- neighbours of the selected façade ---------- */

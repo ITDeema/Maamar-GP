@@ -173,6 +173,48 @@ export async function fetchServices(lat: number, lng: number, signal?: AbortSign
   }
 }
 
+/* ---------- population density ---------- */
+
+export type DensityResponse = {
+  neighborhood: string;
+  density: number; // people per km²
+  level: "L" | "M" | "H";
+};
+
+export async function fetchDensity(
+  neighborhood: string,
+  signal?: AbortSignal,
+): Promise<DensityResponse> {
+  const request = limited(signal, 30_000);
+
+  try {
+    const url =
+      `${API_URL}/api/density?neighborhood=${encodeURIComponent(neighborhood)}`;
+
+    const res = await fetch(url, {
+      signal: request.signal,
+    });
+
+    if (!res.ok) {
+      throw new Error(`Density request failed (${res.status})`);
+    }
+
+    const data = (await res.json()) as DensityResponse;
+
+    if (
+      !Number.isFinite(data.density) ||
+      !["L", "M", "H"].includes(data.level)
+    ) {
+      throw new Error("Invalid density response");
+    }
+
+    return data;
+  } finally {
+    request.done();
+  }
+}
+
+
 // The places and buildings are optional extras: when they fail we return nothing and draw without them.
 export async function fetchPois(
   lat: number,
