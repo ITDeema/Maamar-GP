@@ -81,6 +81,17 @@ const ar = {
     avgHeight: "متوسط ارتفاع المباني خلال 300 م",
     maxHeight: "أعلى مبنى مجاور",
     noise: "مستوى الضوضاء",
+    noiseReason: "{road} على بعد {meters} م",
+    noiseNone: "لا طريق رئيسي قريب",
+    roadClasses: {
+      motorway: "طريق سريع",
+      arterial: "طريق رئيسي",
+      main: "شارع رئيسي",
+      collector: "شارع مجمع",
+      local: "شارع فرعي",
+      footway: "ممر مشاة",
+      rail: "سكة حديد",
+    },
     densityLevels: { low: "منخفضة", medium: "متوسطة", high: "عالية" },
   },
   decisions: {
@@ -222,6 +233,12 @@ const ar = {
   },
   parcelNote:
     "ملاحظة على مستوى القطعة: مساحة هذه القطعة ({area} م²) قريبة من الحد الأدنى لتحقيق كامل الارتدادات مع مساحة بناء عملية. يُنصح بالتأكد من ذلك مع البلدية قبل بدء التصميم التفصيلي. لا علاقة لهذه الملاحظة بصحة التوصيات.",
+  loading: "جارٍ تحميل النتيجة…",
+  refresh: {
+    title: "يُنصح بإجراء تحليل جديد",
+    role: "تغيّر نوع حسابك بعد إجراء هذا التحليل، فقد لا تناسبك مؤشراته وتوصياته الآن.",
+    old: "مرّ أكثر من 6 أشهر على هذا التحليل، وقد تتغير البيانات والأنظمة.",
+  },
   disclaimer:
     "معمار أداة دعم قرار مبكر، ولا تغني عن المعماري المرخّص ولا عن موافقات البلدية.",
   exportModal: {
@@ -322,6 +339,17 @@ const en: ResultsCopy = {
     avgHeight: "Average building height within 300 m",
     maxHeight: "Tallest neighboring building",
     noise: "Noise level",
+    noiseReason: "{road}, {meters} m away",
+    noiseNone: "No major road nearby",
+    roadClasses: {
+      motorway: "Motorway",
+      arterial: "Arterial road",
+      main: "Main street",
+      collector: "Collector street",
+      local: "Local street",
+      footway: "Footway",
+      rail: "Railway",
+    },
     densityLevels: { low: "Low", medium: "Medium", high: "High" },
   },
   decisions: {
@@ -465,6 +493,12 @@ const en: ResultsCopy = {
   
   parcelNote:
     "Plot-level note: this plot's area ({area} m²) is close to the minimum needed to meet all setbacks with a practical building area. Check this with the municipality before detailed design. This note does not affect the validity of the recommendations.",
+  loading: "Loading the result…",
+  refresh: {
+    title: "A new analysis is recommended",
+    role: "Your account type changed after this analysis was made, so its indicators and recommendations may no longer suit you.",
+    old: "This analysis is more than 6 months old, so the data and regulations may have changed.",
+  },
   disclaimer:
     "MAAMAR is an early decision-support tool. It does not replace a licensed architect or municipal approvals.",
   exportModal: {

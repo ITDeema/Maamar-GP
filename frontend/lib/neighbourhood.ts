@@ -3,11 +3,6 @@ import type { FacadeNeighbours } from "@/lib/site-api";
 
 /* ---------- gauges (noise and density) ---------- */
 
-// Noise (dB) levels. These thresholds are a first guess, adjust them with the team.
-export function noiseLevelOf(db: number): Level {
-  return db < 50 ? "low" : db < 60 ? "medium" : "high";
-}
-
 export function densityLevelOf(
   density: number,
   densityLevel?: "L" | "M" | "H" | null,
@@ -26,9 +21,9 @@ export function badnessTone(level: Level): Tone {
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
-// Needle position, 0 (far left) to 1 (far right). Noise is drawn from 35 to 75 dB.
-export function noiseFraction(db: number): number {
-  return clamp((db - 35) / 40);
+// Needle position, 0 (far left) to 1 (far right). The noise level points at the middle of its colored arc.
+export function noiseFraction(level: Level): number {
+  return level === "low" ? 0.17 : level === "medium" ? 0.5 : 0.83;
 }
 
 export function densityFraction(density: number): number {

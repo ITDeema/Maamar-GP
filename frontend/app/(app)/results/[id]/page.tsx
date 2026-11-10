@@ -13,6 +13,7 @@ import DecisionList from "@/components/analysis/DecisionList";
 import ExportModal from "@/components/analysis/ExportModal";
 import IndicatorsPanel, { SiteIndicatorsCard } from "@/components/analysis/IndicatorsPanel";
 import type { IndicatorsState } from "@/components/analysis/IndicatorsPanel";
+import RefreshNotice from "@/components/analysis/RefreshNotice";
 import StatusMessage from "@/components/analysis/StatusMessage";
 import WindCard from "@/components/analysis/WindCard";
 import NeighbourhoodCard from "@/components/analysis/NeighbourhoodCard";
@@ -28,6 +29,7 @@ import {
   radiationGradient,
 } from "@/lib/analysis-detail";
 import type { Facade } from "@/lib/analysis-detail";
+import { loadSavedResults, saveResults } from "@/lib/analysis-store";
 import { lookupPlot } from "@/lib/analysis";
 import type { LatLng } from "@/lib/geo";
 import FacadePicker from "@/components/analysis/FacadePicker";
@@ -35,7 +37,7 @@ import { formatDate } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 import { useResults } from "@/lib/results";
 import { fill, useResultsCopy } from "@/lib/results-copy";
-import { mockUser } from "@/lib/user";
+import { useProfileRole } from "@/lib/profile-role";
 import type { Role } from "@/lib/user";
 import { MAX_RESULT_NAME_LENGTH } from "@/lib/validation";
 
@@ -71,15 +73,19 @@ function ResultsContent() {
   const { id } = useParams<{ id: string }>();
   const params = useSearchParams();
   const demo = params.get("demo"); // "indicators-error" or "export-error" (for testing) 
-  const { results, setSaved, rename, markOpened } = useResults();
+  const { results, loaded, setSaved, rename, markOpened } = useResults();
   const result = results.find((r) => r.id === id);
   
+  const exists = result !== undefined;
   useEffect(() => {
-    markOpened(id);
-  }, [id, markOpened]);
+    if (exists) markOpened(id);
+  }, [id, exists, markOpened]);
 
 
-  const [role, setRole] = useState<Role>(mockUser.role);
+  // The role comes from the user's profile. The switch at the bottom (development only) can override it.
+  const profile = useProfileRole();
+  const [roleOverride, setRoleOverride] = useState<Role | null>(null);
+  const role: Role = roleOverride ?? profile.role ?? "homeowner";
   const [facade, setFacade] = useState<Facade>("south");
   // the real plot boundary for the facade map; the map opens on the plot's main facade
   const [outline, setOutline] = useState<LatLng[] | null>(null);
@@ -107,19 +113,34 @@ function ResultsContent() {
   // The indicators load on their own, so a failure only affects their section.
   useEffect(() => {
     const controller = new AbortController();
-    fetchIndicators(id, {
-      fail: demo === "indicators-error" && attempt === 0,
-      signal: controller.signal,
-      lat: resultLat,
-      lng: resultLng,
-    })
-      .then((data) => setIndicators({ status: "ready", data }))
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setIndicators({ status: "error" });
+    async function load() {
+      // A result opened from the history shows what was saved, without calculating again.
+      // "Try again" (attempt > 0) always calculates again and saves the new values.
+      if (attempt === 0 && demo === null && exists) {
+        const saved = await loadSavedResults(id);
+        if (controller.signal.aborted) return;
+        if (saved) {
+          setIndicators({ status: "ready", data: saved });
+          return;
+        }
+      }
+      const data = await fetchIndicators(id, {
+        fail: demo === "indicators-error" && attempt === 0,
+        signal: controller.signal,
+        lat: resultLat,
+        lng: resultLng,
       });
+      if (controller.signal.aborted) return;
+      setIndicators({ status: "ready", data });
+      // Only a complete analysis is saved; a failure to save does not affect the dashboard.
+      if (exists && demo === null) void saveResults(id, data);
+    }
+    load().catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setIndicators({ status: "error" });
+    });
     return () => controller.abort();
-  }, [id, demo, attempt, resultLat, resultLng]);
+  }, [id, demo, attempt, resultLat, resultLng, exists]);
 
   function retryIndicators() {
     setIndicators({ status: "loading" });
@@ -160,6 +181,16 @@ function ResultsContent() {
     });
     return values;
   }, [ready, architect, c]);
+
+  if (!loaded || !profile.ready) {
+    return (
+      <main className="mx-auto max-w-xl px-4 py-16 text-center">
+        <p role="status" className="text-sm text-navy-900/70">
+          {c.loading}
+        </p>
+      </main>
+    );
+  }
 
   if (!result) {
     return (
@@ -203,6 +234,13 @@ function ResultsContent() {
         parcelNote: result.parcelNote,
       }
     : null;
+
+  // Suggest a new analysis when the account type changed since this analysis, or it is old.
+  const roleChanged = profile.role !== null && profile.role !== result.role;
+  const refreshReasons = [
+    roleChanged ? c.refresh.role : null,
+    result.stale ? c.refresh.old : null,
+  ].filter((reason): reason is string => reason !== null);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
@@ -284,6 +322,14 @@ function ResultsContent() {
 
       
 
+      {refreshReasons.length > 0 && (
+        <RefreshNotice
+          title={c.refresh.title}
+          reasons={refreshReasons}
+          action={c.actions.newAnalysis}
+        />
+      )}
+
       {result.parcelNote && (
         <p className="mt-4 rounded-card border border-caution-500/40 bg-caution-50 p-4 text-sm leading-7 text-caution-700">
           {fill(c.parcelNote, { area: result.area })}
@@ -359,7 +405,7 @@ function ResultsContent() {
           <SegmentedControl<Role>
             label={c.dev.label}
             value={role}
-            onChange={setRole}
+            onChange={setRoleOverride}
             options={[
               { value: "homeowner", label: t("role.homeowner") },
               { value: "architect", label: t("role.architect") },

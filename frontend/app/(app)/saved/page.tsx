@@ -8,6 +8,7 @@ import EmptyState from "@/components/EmptyState";
 import Modal from "@/components/Modal";
 import RenameResultModal from "@/components/RenameResultModal";
 import SearchInput from "@/components/SearchInput";
+import StatusMessage from "@/components/analysis/StatusMessage";
 import { formatDate } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 import { useResults } from "@/lib/results";
@@ -15,7 +16,7 @@ import type { AnalysisResult } from "@/lib/results";
 
 export default function SavedPage() {
   const { t, lang } = useT();
-  const { results, setSaved } = useResults();
+  const { results, loaded, loadError, setSaved } = useResults();
   const [query, setQuery] = useState("");
   const [renaming, setRenaming] = useState<AnalysisResult | null>(null);
   const [removing, setRemoving] = useState<AnalysisResult | null>(null);
@@ -37,7 +38,9 @@ export default function SavedPage() {
         <p className="mt-1 text-sm text-navy-900/70">{t("saved.subtitle")}</p>
       </div>
 
-      {saved.length === 0 ? (
+      {loadError ? (
+        <StatusMessage tone="error">{t("common.loadError")}</StatusMessage>
+      ) : !loaded ? null : saved.length === 0 ? (
         <EmptyState title={t("saved.empty")} hint={t("saved.emptyHint")} />
       ) : (
         <>

@@ -304,3 +304,27 @@ export async function fetchOverpass(
     signal?.removeEventListener("abort", stop);
   }
 }
+
+// Road noise level of the plot (low, medium or high). Our backend measures the distance to the nearest road
+// of each class, the same measures as the dataset, and turns them into a level.
+export type NoiseRoadClass = "motorway" | "arterial" | "main" | "collector" | "local" | "footway" | "rail";
+export type NoiseResponse = {
+  level: "low" | "medium" | "high";
+  reason: { class: NoiseRoadClass; distance: number } | null; // the road that decided the level
+  distances: Record<string, number | null>; // m, from the road edge; null = none within 1000 m
+};
+
+export async function fetchNoise(lat: number, lng: number, signal?: AbortSignal): Promise<NoiseResponse> {
+  const request = limited(signal, 60_000);
+  try {
+    const res = await fetch(`${API_URL}/noise?latitude=${lat}&longitude=${lng}`, { signal: request.signal });
+    if (!res.ok) throw new Error(`Noise request failed (${res.status})`);
+    const data = (await res.json()) as NoiseResponse;
+    if (data.level !== "low" && data.level !== "medium" && data.level !== "high") {
+      throw new Error("Noise response has no level");
+    }
+    return data;
+  } finally {
+    request.done();
+  }
+}

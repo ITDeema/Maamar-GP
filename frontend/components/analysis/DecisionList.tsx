@@ -48,9 +48,10 @@ export default function DecisionList({ role, indicators, constraints }: Decision
            ? [
              metric("radiation", "east"),
                indicators
+          && indicators.site.noise !== null
           ? {
               label: c.site.noise,
-              value: `${indicators.site.noise} dB`,
+              value: c.indicators.levels[indicators.site.noise],
             }
           : null,
       ]

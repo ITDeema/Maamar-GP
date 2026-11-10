@@ -105,6 +105,7 @@ const ar = {
   "common.viewResults": "عرض النتائج",
   "common.searchByName": "ابحث باسم النتيجة",
   "common.noMatches": "لا توجد نتائج مطابقة للبحث",
+  "common.loadError": "تعذر تحميل تحليلاتك. حاول مرة أخرى لاحقًا.",
   "unit.sqm": "م²",
 
   "forgot.title": "استعادة كلمة المرور",
@@ -224,6 +225,7 @@ const en: Record<TranslationKey, string> = {
   "common.viewResults": "View results",
   "common.searchByName": "Search by result name",
   "common.noMatches": "No results match your search",
+  "common.loadError": "Could not load your analyses. Please try again later.",
   "unit.sqm": "m²",
 
   "forgot.title": "Reset your password",

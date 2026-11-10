@@ -76,14 +76,17 @@ function AnalyzingContent() {
     let redirect: ReturnType<typeof setTimeout> | undefined;
 
     runAnalysis({ lat, lng, area, demo }, setStep, controller.signal)
-      .then(() => {
-        const id = addResult({
+      .then(async () => {
+        if (controller.signal.aborted) return;
+        // the finished analysis is saved in the history (Supabase)
+        const id = await addResult({
           namePrefix: c.defaultName,
           area,
           lat,
           lng,
           villaType,
-       });
+        });
+        if (controller.signal.aborted) return;
         setStatus("done");
         redirect = setTimeout(() => router.replace(`/results/${id}`), 900);
       })

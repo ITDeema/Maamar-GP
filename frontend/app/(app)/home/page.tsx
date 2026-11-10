@@ -9,7 +9,7 @@ import { useResults } from "@/lib/results";
 
 export default function HomePage() {
   const { t, lang } = useT();
-  const { results } = useResults();
+  const { results, loaded, loadError } = useResults();
 
   
   const recentProjects = [...results]
@@ -101,7 +101,7 @@ export default function HomePage() {
           ))}
         </div>
 
-        {recentProjects.length === 0 && (
+        {loaded && !loadError && recentProjects.length === 0 && (
           <div className="rounded-card border border-navy-900/10 p-6 text-center">
             <h3 className="font-semibold">{t("home.empty")}</h3>
             <p className="mt-2 text-sm text-navy-900/70">

@@ -7,6 +7,7 @@ import Card from "@/components/Card";
 import EmptyState from "@/components/EmptyState";
 import RenameResultModal from "@/components/RenameResultModal";
 import SearchInput from "@/components/SearchInput";
+import StatusMessage from "@/components/analysis/StatusMessage";
 import { formatDate } from "@/lib/format";
 import { useT } from "@/lib/i18n";
 import { useResults } from "@/lib/results";
@@ -14,7 +15,7 @@ import type { AnalysisResult } from "@/lib/results";
 
 export default function HistoryPage() {
   const { t, lang } = useT();
-  const { results } = useResults();
+  const { results, loaded, loadError } = useResults();
   const [query, setQuery] = useState("");
   const [renaming, setRenaming] = useState<AnalysisResult | null>(null);
 
@@ -29,7 +30,9 @@ export default function HistoryPage() {
         <p className="mt-1 text-sm text-navy-900/70">{t("history.subtitle")}</p>
       </div>
 
-      {results.length === 0 ? (
+      {loadError ? (
+        <StatusMessage tone="error">{t("common.loadError")}</StatusMessage>
+      ) : !loaded ? null : results.length === 0 ? (
         <EmptyState title={t("history.empty")} />
       ) : (
         <>

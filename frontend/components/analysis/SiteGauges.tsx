@@ -7,21 +7,40 @@ import {
   densityFraction,
   densityLevelOf,
   noiseFraction,
-  noiseLevelOf,
 } from "@/lib/neighbourhood";
 import { fill, useResultsCopy } from "@/lib/results-copy";
 
 export function NoiseGauge({ site }: { site: SiteIndicators }) {
   const c = useResultsCopy();
-  const level = noiseLevelOf(site.noise);
+
+  // The noise level could not be loaded
+  if (site.noise === null) {
+    return (
+      <Gauge
+        fraction={0}
+        tone="caution"
+        label={c.site.noise}
+        levelText="—"
+        valueText="—"
+        ariaLabel={c.site.noise}
+      />
+    );
+  }
+
+  const level = site.noise;
   const levelText = c.indicators.levels[level];
+  const reason = site.noiseReason;
   return (
     <Gauge
-      fraction={noiseFraction(site.noise)}
+      fraction={noiseFraction(level)}
       tone={badnessTone(level)}
       label={c.site.noise}
       levelText={levelText}
-      valueText={`${Math.round(site.noise)} dB`}
+      valueText={
+        reason
+          ? fill(c.site.noiseReason, { road: c.site.roadClasses[reason.roadClass], meters: Math.round(reason.distance) })
+          : c.site.noiseNone
+      }
       ariaLabel={fill(c.hood.gaugeLabel, { metric: c.site.noise, level: levelText })}
     />
   );

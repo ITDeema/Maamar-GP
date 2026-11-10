@@ -4,7 +4,7 @@
  * with real requests. The dashboard will not need to change.
  */
 
-import { fetchDensity, fetchFacadeIndicators, fetchWind } from "@/lib/site-api";import type { FacadeNeighbours, WindDirection } from "@/lib/site-api";
+import { fetchDensity, fetchFacadeIndicators, fetchNoise, fetchWind } from "@/lib/site-api";import type { FacadeNeighbours, NoiseRoadClass, WindDirection } from "@/lib/site-api";
 import { fetchNeighborhood } from "@/lib/analysis";
 // The four sides of the plot. Setbacks are set per side.
 export type Side = "north" | "east" | "south" | "west";
@@ -49,10 +49,14 @@ export type SiteIndicators = {
   densityLevel?: "L" | "M" | "H" | null;
   avgHeight: number | null; // m, mean of the neighbouring buildings within 300 m; null when none
   maxHeight: number | null; // m, tallest of the neighbours per direction; null when none
-  noise: number; // dB
+  noise: Level | null; // road noise level; null when it could not be loaded
+  noiseReason?: { roadClass: NoiseRoadClass; distance: number } | null; // the road that decided it (m)
 };
 
 export type IndicatorsData = {
+  // True only when the wind, the façade indicators and the noise all came from the backend.
+  // Only a complete analysis is saved in the database (sample values are never saved as real ones).
+  complete?: boolean;
   facades: Record<Facade, FacadeIndicators>;
   site: SiteIndicators;
   neighbours: Record<Facade, FacadeNeighbours> | null; // null until the backend answers (the card shows samples)
@@ -130,7 +134,7 @@ export function buildIndicators(id: string): IndicatorsData {
       density: round(clamp01(0.42 + jitter(hash, 3, 0.2)), 2),
       avgHeight: round(6.5 + jitter(hash, 4, 2), 1),
       maxHeight: round(14 + jitter(hash, 5, 4), 1),
-      noise: Math.round(52 + jitter(hash, 6, 8)),
+      noise: null, // never a sample value: the real level comes from the backend
     },
   };
 }
@@ -162,6 +166,9 @@ export async function fetchIndicators(
     // Do not show the mock density as real population data.
      data.site.density = null;
     data.site.densityLevel = null;
+    let windOk = false;
+    let facadesOk = false;
+    let noiseOk = false;
 
   // The wind is real: it comes from our backend (ERA5-Land). If the backend is
   // not running we keep the sample values, and the rest of the dashboard still works.
@@ -169,6 +176,7 @@ export async function fetchIndicators(
     const wind = await fetchWind(options.signal);
     data.site.windFrom = WIND_FACADE[wind.dominant];
     data.site.windSpeed = wind.meanSpeed;
+    windOk = true;
   } catch (error) {
     if (options.signal.aborted) throw error;
     console.warn("Wind error:", error);
@@ -198,12 +206,28 @@ export async function fetchIndicators(
   }
 
 
+  // Road noise level: real, from our backend (the same road measures as the dataset).
+  if (options.lat !== undefined && options.lng !== undefined) {
+    try {
+      const noise = await fetchNoise(options.lat, options.lng, options.signal);
+      data.site.noise = noise.level;
+      data.site.noiseReason = noise.reason
+        ? { roadClass: noise.reason.class, distance: noise.reason.distance }
+        : null;
+      noiseOk = true;
+    } catch (error) {
+      if (options.signal.aborted) throw error;
+      console.warn("Noise error:", error);
+    }
+  }
+
   // Radiation, shade, wind shelter and sky view are real: they come from our backend, the same
   // calculation as the dataset (radiation: summer per day; shade: 21 June; wind shelter and sky view: of each wall).
   // If the backend is not running we keep the sample values.
   if (options.lat !== undefined && options.lng !== undefined) {
     try {
       const real = await fetchFacadeIndicators(options.lat, options.lng, options.signal);
+      facadesOk = true;
       // A value the backend did not send (an older backend file) keeps the sample value.
       const take = (value: number | null | undefined, fallback: number | null) =>
         value === undefined ? fallback : value;
@@ -232,6 +256,7 @@ export async function fetchIndicators(
       console.warn("Facade indicators error:", error);
     }
   }
+  data.complete = windOk && facadesOk && noiseOk;
   return data;
 }
 
