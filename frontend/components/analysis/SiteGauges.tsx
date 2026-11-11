@@ -73,7 +73,7 @@ export function DensityGauge({ site }: { site: SiteIndicators }) {
       tone={badnessTone(level)}
       label={c.site.density}
       levelText={levelText}
-      valueText={`${Math.round(site.density).toLocaleString()} شخص/كم²`}
+      valueText={`${Math.round(site.density).toLocaleString()} ${c.site.densityUnit}`}
       ariaLabel={fill(c.hood.gaugeLabel, {
         metric: c.site.density,
         level: levelText,
