@@ -6,8 +6,8 @@ import RoadsDiagram from "@/components/diagrams/RoadsDiagram";
 import SunWindDiagram from "@/components/diagrams/SunWindDiagram";
 import type { Loadable } from "@/lib/loadable";
 import { useResultsCopy } from "@/lib/results-copy";
-import { fetchSunPath } from "@/lib/site-api";
-import type { SunPath } from "@/lib/site-api";
+import { fetchSunPath, fetchWind } from "@/lib/site-api";
+import type { SunPath, Wind } from "@/lib/site-api";
 import { isEmptySurroundings, loadSurroundings } from "@/lib/site-surroundings";
 import type { Surroundings } from "@/lib/site-surroundings";
 
@@ -21,6 +21,20 @@ export default function SiteDiagrams({ lat, lng }: { lat: number; lng: number })
   const [around, setAround] = useState<Loadable<Surroundings>>({ status: "loading" });
   const [sunAttempt, setSunAttempt] = useState(0);
   const [aroundAttempt, setAroundAttempt] = useState(0);
+  // the hot (summer) and cool (winter) winds for the sun and wind diagram (shared with the rest of the page)
+  const [wind, setWind] = useState<Wind | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchWind()
+      .then((data) => {
+        if (active) setWind(data);
+      })
+      .catch((error: unknown) => console.warn("Wind error:", error));
+    return () => {
+      active = false;
+    };
+  }, [lat, lng]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -63,7 +77,7 @@ export default function SiteDiagrams({ lat, lng }: { lat: number; lng: number })
       <h2 className="text-sm font-bold">{c.diagrams.title}</h2>
       <p className="mb-3 mt-1 text-xs leading-6 text-navy-900/70">{c.diagrams.hint}</p>
       <div className="grid gap-5 lg:grid-cols-3">
-        <SunWindDiagram lat={lat} lng={lng} sun={sun} around={around} onRetry={retrySun} />
+        <SunWindDiagram lat={lat} lng={lng} sun={sun} around={around} wind={wind} onRetry={retrySun} />
         <LandUseDiagram lat={lat} lng={lng} around={around} onRetry={retryAround} />
         <RoadsDiagram lat={lat} lng={lng} around={around} onRetry={retryAround} />
       </div>

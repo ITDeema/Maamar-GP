@@ -3,17 +3,16 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
-import SegmentedControl from "@/components/SegmentedControl";
 import { BookmarkIcon, ExportIcon } from "@/components/analysis/ActionIcons";
 import ConstraintsCard from "@/components/analysis/ConstraintsCard";
 import DecisionList from "@/components/analysis/DecisionList";
 import ExportModal from "@/components/analysis/ExportModal";
 import IndicatorsPanel, { SiteIndicatorsCard } from "@/components/analysis/IndicatorsPanel";
 import type { IndicatorsState } from "@/components/analysis/IndicatorsPanel";
-import RefreshNotice from "@/components/analysis/RefreshNotice";
+import UpdateProjectDialog from "@/components/analysis/UpdateProjectDialog";
 import StatusMessage from "@/components/analysis/StatusMessage";
 import WindCard from "@/components/analysis/WindCard";
 import NeighbourhoodCard from "@/components/analysis/NeighbourhoodCard";
@@ -25,6 +24,7 @@ import {
   formatMetric,
   getConstraints,
   levelOf,
+  mainFacades,
   plotDimensions,
   radiationGradient,
 } from "@/lib/analysis-detail";
@@ -38,7 +38,6 @@ import { useT } from "@/lib/i18n";
 import { useResults } from "@/lib/results";
 import { fill, useResultsCopy } from "@/lib/results-copy";
 import { useProfileRole } from "@/lib/profile-role";
-import type { Role } from "@/lib/user";
 import { MAX_RESULT_NAME_LENGTH } from "@/lib/validation";
 
 function MapLoading() {
@@ -73,7 +72,8 @@ function ResultsContent() {
   const { id } = useParams<{ id: string }>();
   const params = useSearchParams();
   const demo = params.get("demo"); // "indicators-error" or "export-error" (for testing) 
-  const { results, loaded, setSaved, rename, markOpened } = useResults();
+  const router = useRouter();
+  const { results, loaded, setSaved, rename, markOpened, setRole, markRenewed } = useResults();
   const result = results.find((r) => r.id === id);
   
   const exists = result !== undefined;
@@ -82,10 +82,12 @@ function ResultsContent() {
   }, [id, exists, markOpened]);
 
 
-  // The role comes from the user's profile. The switch at the bottom (development only) can override it.
+  // An analysis is shown with the account type it was made with (Project.roleAtAnalysis),
+  // even after the account type in the profile changes. A pop-up then offers to update it or analyze again
+  // (the same pop-up as for an analysis more than 6 months old).
   const profile = useProfileRole();
-  const [roleOverride, setRoleOverride] = useState<Role | null>(null);
-  const role: Role = roleOverride ?? profile.role ?? "homeowner";
+  const role = result?.role ?? profile.role ?? "homeowner";
+  const [dialogClosed, setDialogClosed] = useState(false);
   const [facade, setFacade] = useState<Facade>("south");
   // the real plot boundary for the facade map; the map opens on the plot's main facade
   const [outline, setOutline] = useState<LatLng[] | null>(null);
@@ -97,12 +99,18 @@ function ResultsContent() {
     lookupPlot({ lat: resultLat, lng: resultLng }).then((plot) => {
       if (!active) return;
       setOutline(plot.outline);
-      if (plot.orientation) setFacade(plot.orientation.toLowerCase() as Facade); // "northEast" → "northeast"
+      // open on the main façade; when it is not one of the four shown, on the first shown one
+      const shownNow = mainFacades(plot.outline);
+      const mainFacade = plot.orientation ? (plot.orientation.toLowerCase() as Facade) : null; // "northEast" → "northeast"
+      if (mainFacade && (!shownNow || shownNow.includes(mainFacade))) setFacade(mainFacade);
+      else if (shownNow) setFacade(shownNow[0]);
     });
     return () => {
       active = false;
     };
   }, [resultLat, resultLng]);
+  // only the four longest walls of the plot are shown (its real tilt); all eight until the outline is known
+  const shown = useMemo(() => mainFacades(outline), [outline]);
   const [indicators, setIndicators] = useState<IndicatorsState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -229,18 +237,48 @@ function ResultsContent() {
         area: result.area,
         lat: result.lat,
         lng: result.lng,
-        indicators: ready,
+        indicators: { ...ready, shown },
         constraints,
         parcelNote: result.parcelNote,
       }
     : null;
 
-  // Suggest a new analysis when the account type changed since this analysis, or it is old.
-  const roleChanged = profile.role !== null && profile.role !== result.role;
-  const refreshReasons = [
-    roleChanged ? c.refresh.role : null,
-    result.stale ? c.refresh.old : null,
-  ].filter((reason): reason is string => reason !== null);
+  // The account type changed since this analysis, or it is more than 6 months old: a pop-up (see UpdateProjectDialog).
+  const newRole = profile.role !== null && profile.role !== result.role ? profile.role : null;
+  const old = result.stale;
+
+  // "Update this project": the new account type, and when it is old, the indicators calculated again and saved
+  // with today's date. Resolves to false when something could not be saved (the project stays as it was).
+  async function updateProject(): Promise<boolean> {
+    if (!result) return false;
+    if (old) {
+      const controller = new AbortController();
+      try {
+        const fresh = await fetchIndicators(result.id, {
+          fail: false,
+          signal: controller.signal,
+          lat: result.lat,
+          lng: result.lng,
+        });
+        if (!(await saveResults(result.id, fresh, { renew: true }))) return false;
+        setIndicators({ status: "ready", data: fresh });
+        markRenewed(result.id);
+      } catch {
+        return false;
+      }
+    }
+    if (newRole && !(await setRole(result.id, newRole))) return false;
+    return true;
+  }
+
+  // "New analysis": the plot page opens with the same plot (and villa type) already chosen;
+  // this project stays as it is.
+  function analyzeAgain() {
+    if (!result) return;
+    const query = new URLSearchParams({ lat: String(result.lat), lng: String(result.lng) });
+    if (result.villaType) query.set("villaType", result.villaType);
+    router.push(`/select-plot?${query.toString()}`);
+  }
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
@@ -322,13 +360,6 @@ function ResultsContent() {
 
       
 
-      {refreshReasons.length > 0 && (
-        <RefreshNotice
-          title={c.refresh.title}
-          reasons={refreshReasons}
-          action={c.actions.newAnalysis}
-        />
-      )}
 
       {result.parcelNote && (
         <p className="mt-4 rounded-card border border-caution-500/40 bg-caution-50 p-4 text-sm leading-7 text-caution-700">
@@ -361,6 +392,7 @@ function ResultsContent() {
               tips={tips}
               label={c.map.label}
               outline={outline}
+              shown={shown}
             />
           </div>
           <div className="flex items-center gap-3 text-xs text-navy-900/70">
@@ -373,6 +405,7 @@ function ResultsContent() {
             value={facade}
             onChange={setFacade}
             names={c.facade.names}
+            options={shown}
           />
           </Card>
           {architect && ready && <SiteIndicatorsCard site={ready.site} />}
@@ -400,18 +433,15 @@ function ResultsContent() {
 
       <p className="mt-8 text-xs leading-6 text-navy-900/70">{c.disclaimer}</p>
 
-      {process.env.NODE_ENV !== "production" && (
-        <div className="mt-6 max-w-sm rounded-card border border-dashed border-navy-900/25 p-4">
-          <SegmentedControl<Role>
-            label={c.dev.label}
-            value={role}
-            onChange={setRoleOverride}
-            options={[
-              { value: "homeowner", label: t("role.homeowner") },
-              { value: "architect", label: t("role.architect") },
-            ]}
-          />
-        </div>
+      {(newRole || old) && (
+        <UpdateProjectDialog
+          open={!dialogClosed}
+          oldRole={newRole ? result.role : null}
+          old={old}
+          onUpdate={updateProject}
+          onNewAnalysis={analyzeAgain}
+          onClose={() => setDialogClosed(true)}
+        />
       )}
 
       <ExportModal

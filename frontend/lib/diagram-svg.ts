@@ -114,14 +114,12 @@ export function waveArrow(x1: number, y1: number, x2: number, y2: number, o: Wav
 
 /* ---------- sun and wind ---------- */
 
-// Fixed in the test page: cool wind from the north-west, hot wind from the south-east.
-// Replace with real wind data when it exists.
-const WINDS = [
-  { from: 315, type: "cool", strength: 1.0 },
-  { from: 135, type: "hot", strength: 0.85 },
-] as const;
+// A wind arrow from the wind data: the direction it comes FROM (degrees from north),
+// hot (summer) or cool (winter), and its strength 0..1 (the thickness of the arrows).
+// The arrows start at that direction on the circle and point at the site in the centre.
+export type WindArrow = { from: number; type: "hot" | "cool"; strength: number };
 
-function windGroup(cx: number, cy: number, R: number, wind: (typeof WINDS)[number]): string {
+function windGroup(cx: number, cy: number, R: number, wind: WindArrow): string {
   const a = (wind.from * Math.PI) / 180;
   const ux = -Math.sin(a);
   const uy = Math.cos(a);
@@ -251,11 +249,11 @@ function siteMarker(cx: number, cy: number, label?: string): string {
 
 /* ---------- the three overlays ---------- */
 
-export function sunOverlay(w: number, h: number, sun: SunPath, northLabel: string): string {
+export function sunOverlay(w: number, h: number, sun: SunPath, northLabel: string, winds: WindArrow[] = []): string {
   const cx = w / 2;
   const cy = h / 2;
   const R = diagramRadius(w, h);
-  let out = WINDS.map((wind) => windGroup(cx, cy, R, wind)).join("");
+  let out = winds.map((wind) => windGroup(cx, cy, R, wind)).join("");
   out += sunCrescent(cx, cy, R, sun);
   out += dashedCircle(cx, cy, R);
   out += northArrow(w - 44, 58, northLabel);

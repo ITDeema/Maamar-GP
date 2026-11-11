@@ -59,9 +59,6 @@ export default function HistoryPage() {
                     <th scope="col" className="px-3 py-3 text-start font-semibold">
                       {t("history.colArea")}
                     </th>
-                    <th scope="col" className="px-3 py-3 text-start font-semibold">
-                      {t("history.colNotes")}
-                    </th>
                     <th scope="col" className="px-3 py-3 text-start">
                       <span className="sr-only">{t("history.colActions")}</span>
                     </th>
@@ -78,15 +75,6 @@ export default function HistoryPage() {
                       </th>
                       <td className="px-3 py-4 text-navy-900/70">
                         {r.area} {t("unit.sqm")}
-                      </td>
-                      <td className="px-3 py-4 text-xs">
-                        {r.parcelNote ? (
-                          <span className="font-semibold text-caution-700">
-                            {t("history.noteSetback")}
-                          </span>
-                        ) : (
-                          <span className="text-navy-900/70">—</span>
-                        )}
                       </td>
                       <td className="px-3 py-4">
                         <div className="flex items-center gap-3">

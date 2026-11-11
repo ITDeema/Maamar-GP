@@ -44,7 +44,7 @@ export function buildReportHtml(input: ReportInput): string {
   }).join("");
 
   const header = METRICS.map((m) => `<th>${escapeHtml(c.indicators.metrics[m])}</th>`).join("");
-  const rows = FACADES.map((facade) => {
+  const rows = (input.indicators.shown ?? FACADES).map((facade) => {
     const cells = METRICS.map((metric) => {
       const value = input.indicators.facades[facade][metric];
       const text =

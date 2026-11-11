@@ -1,4 +1,3 @@
-
 import csv
 from pathlib import Path
 
@@ -10,9 +9,12 @@ CSV_PATH = Path(__file__).resolve().parent / "data" / "Density.csv"
 
 
 def normalize_name(name: str) -> str:
-    """Normalize Arabic neighborhood names for matching."""
+    """Normalize Arabic neighborhood names for matching ("حي الملقا" and "الملقا" are the same)."""
+    name = name.strip()
+    if name.startswith("حي "):
+        name = name[3:].strip()
     return (
-        name.strip()
+        name
         .replace("أ", "ا")
         .replace("إ", "ا")
         .replace("آ", "ا")
@@ -61,4 +63,3 @@ def get_density(
         )
 
     return result
- 

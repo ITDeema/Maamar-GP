@@ -1,4 +1,5 @@
-import { fetchOverpass, fetchOvertureBuildings, fetchPois } from "@/lib/site-api";
+import { fetchOverpass, fetchOvertureBuildings, fetchPois, fetchSunPath } from "@/lib/site-api";
+import { pointKey, shared, waitFor } from "@/lib/shared-request";
 import type { OsmElement, Poi, RawBuilding, Tags } from "@/lib/site-api";
 
 // Everything around the site, ready to draw. No map code in here.
@@ -234,12 +235,27 @@ function refineBuildings(buildings: WorkBuilding[], areas: Area[], pois: Poi[]) 
 const toPts = (geometry: { lat: number; lon: number }[]): LatLngTuple[] =>
   geometry.map((p) => [p.lat, p.lon]);
 
+// Starts the architect's diagrams (sun path and surroundings) as soon as the user presses "start analysis".
+// The analysis does not wait for them (the map servers can be slow); the results page reuses them.
+export function prefetchDiagrams(lat: number, lng: number): void {
+  fetchSunPath(lat, lng).catch(() => undefined);
+  loadSurroundings(lat, lng).catch(() => undefined);
+}
+
 // Loads roads, buildings, land use and transit stops around the site.
-export async function loadSurroundings(
-  lat: number,
-  lng: number,
-  signal?: AbortSignal,
-): Promise<Surroundings> {
+// Shared: the analysis page starts it (for architects), the results page reuses it.
+export function loadSurroundings(lat: number, lng: number, signal?: AbortSignal): Promise<Surroundings> {
+  const request = shared(`around:${pointKey(lat, lng)}`, () =>
+    buildSurroundings(lat, lng).then((data) => {
+      // nothing came back (the map servers did not answer): not kept, so "try again" asks again
+      if (isEmptySurroundings(data)) throw new Error("No surroundings around the site");
+      return data;
+    }),
+  );
+  return waitFor(request, signal);
+}
+
+async function buildSurroundings(lat: number, lng: number, signal?: AbortSignal): Promise<Surroundings> {
   const radius = LAND_RADIUS + 60;
   const around = `(around:${radius},${lat},${lng})`;
 

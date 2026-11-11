@@ -9,8 +9,7 @@ import { useStaticMap } from "@/components/diagrams/useStaticMap";
 import { INK, ROAD_STYLE, TRANSIT } from "@/lib/diagram-palette";
 import { diagramRadius, roadsOverlay } from "@/lib/diagram-svg";
 import type { Loadable } from "@/lib/loadable";
-import { fill, useResultsCopy } from "@/lib/results-copy";
-import { LAND_RADIUS } from "@/lib/site-surroundings";
+import { useResultsCopy } from "@/lib/results-copy";
 import type { Surroundings } from "@/lib/site-surroundings";
 
 type RoadsDiagramProps = {
@@ -39,13 +38,6 @@ export default function RoadsDiagram({ lat, lng, around, onRetry }: RoadsDiagram
   }, [lat, lng, size, around, mapRef, layerRef]);
 
   const ready = around.status === "ready" ? around.data : null;
-  const subtitle = ready
-    ? fill(c.diagrams.roads.stats, {
-        radius: LAND_RADIUS,
-        bus: ready.stops.filter((s) => s.k === "bus").length,
-        metro: ready.stops.filter((s) => s.k === "metro").length,
-      })
-    : undefined;
 
   const road = (cls: 1 | 2 | 3) => (
     <span
@@ -57,27 +49,10 @@ export default function RoadsDiagram({ lat, lng, around, onRetry }: RoadsDiagram
   return (
     <DiagramFrame
       title={c.diagrams.roads.title}
-      subtitle={subtitle}
       status={around.status}
       onRetry={onRetry}
       boxRef={boxRef}
-    >
-      <div
-        dir="ltr"
-        className="absolute inset-0 isolate z-0"
-        style={{ clipPath: size.w > 0 ? `circle(${radius + 1}px at 50% 50%)` : undefined }}
-      >
-        <div ref={elRef} className="h-full w-full bg-white!" />
-      </div>
-      <svg
-        viewBox={`0 0 ${size.w || 1} ${size.h || 1}`}
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
-        dangerouslySetInnerHTML={{
-          __html: ready && size.w > 0 ? roadsOverlay(size.w, size.h, c.diagrams.north) : "",
-        }}
-      />
-      {ready && (
+      legend={<>{ready && (
         <LegendBox>
           <LegendRow swatch={road(1)} label={c.diagrams.roads.arterial} />
           <LegendRow swatch={road(2)} label={c.diagrams.roads.collector} />
@@ -101,7 +76,23 @@ export default function RoadsDiagram({ lat, lng, around, onRetry }: RoadsDiagram
             label={c.diagrams.roads.metro}
           />
         </LegendBox>
-      )}
+      )}</>}
+    >
+      <div
+        dir="ltr"
+        className="absolute inset-0 isolate z-0"
+        style={{ clipPath: size.w > 0 ? `circle(${radius + 1}px at 50% 50%)` : undefined }}
+      >
+        <div ref={elRef} className="h-full w-full bg-white!" />
+      </div>
+      <svg
+        viewBox={`0 0 ${size.w || 1} ${size.h || 1}`}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
+        dangerouslySetInnerHTML={{
+          __html: ready && size.w > 0 ? roadsOverlay(size.w, size.h, c.diagrams.north) : "",
+        }}
+      />
     </DiagramFrame>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import Input from "@/components/Input";
@@ -11,7 +11,7 @@ import SegmentedControl from "@/components/SegmentedControl";
 import StatusMessage from "@/components/analysis/StatusMessage";
 import { usePlotCopy } from "@/components/analysis/usePlotCopy";
 import type { MapFocus } from "@/components/map/PlotPickerMap";
-import { fetchNeighborhood, lookupPlot } from "@/lib/analysis";
+import { fetchNeighborhood, isResidential, lookupPlot } from "@/lib/analysis";
 import { useT } from "@/lib/i18n";
 import type { PlotInfo } from "@/lib/analysis";
 import { formatCoordinates, isInsideRiyadh, parseCoordinates } from "@/lib/geo";
@@ -45,34 +45,56 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+// "New analysis" from a result opens this page with the same plot already chosen:
+// /select-plot?lat=..&lng=..&villaType=..
+function initialPlot(params: URLSearchParams): { point: LatLng | null; villaType: VillaType | "" } {
+  const type = params.get("villaType");
+  const villaType = type === "attachedBoth" || type === "attachedOne" || type === "detached" ? type : "";
+  const latText = params.get("lat");
+  const lngText = params.get("lng");
+  if (!latText || !lngText) return { point: null, villaType };
+  const point = { lat: Number(latText), lng: Number(lngText) };
+  const valid = Number.isFinite(point.lat) && Number.isFinite(point.lng) && isInsideRiyadh(point);
+  return { point: valid ? point : null, villaType };
+}
+
 export default function SelectPlotPage() {
+  // useSearchParams needs a Suspense boundary
+  return (
+    <Suspense>
+      <SelectPlotContent />
+    </Suspense>
+  );
+}
+
+function SelectPlotContent() {
   const c = usePlotCopy().select;
   const { lang } = useT();
   const router = useRouter();
+  const params = useSearchParams();
+  const [initial] = useState(() => initialPlot(params));
   const [mode, setMode] = useState<Mode>("map");
-  const [villaType, setVillaType] = useState<VillaType | "">("");
+  const [villaType, setVillaType] = useState<VillaType | "">(initial.villaType);
   const [villaTypeError, setVillaTypeError] = useState("");
-  const [latText, setLatText] = useState("");
-  const [lngText, setLngText] = useState("");
+  const [latText, setLatText] = useState(initial.point ? initial.point.lat.toFixed(6) : "");
+  const [lngText, setLngText] = useState(initial.point ? initial.point.lng.toFixed(6) : "");
   const [message, setMessage] = useState<Message>(null);
-  const [point, setPoint] = useState<LatLng | null>(null);
+  const [point, setPoint] = useState<LatLng | null>(initial.point);
   const [plot, setPlot] = useState<PlotInfo | null>(null);
   // undefined while loading, null when no neighborhood was found
   const [neighborhood, setNeighborhood] = useState<string | null | undefined>(undefined);
-  const [focus, setFocus] = useState<MapFocus | null>(null);
+  const [focus, setFocus] = useState<MapFocus | null>(
+    initial.point ? { point: initial.point, zoom: 17, nonce: 0 } : null,
+  );
   const [optionalArea, setOptionalArea] = useState("");
   const [expectedHeight, setExpectedHeight] = useState("");
   const lookupId = useRef(0);
   const [optionalError, setOptionalError] = useState("");
 
 
-  function selectPoint(next: LatLng) {
-    setPoint(next);
-    setPlot(null);
-    setNeighborhood(undefined);
-    setFocus({ point: next, zoom: 17, nonce: Date.now() });
+  // the plot and the neighborhood load in parallel; each shows as soon as it arrives
+  function loadPlot(next: LatLng) {
     const id = ++lookupId.current;
-    // the plot and the neighborhood load in parallel; each shows as soon as it arrives
     lookupPlot(next).then((info) => {
       if (id === lookupId.current) setPlot(info); // ignore answers for an older click
     });
@@ -81,8 +103,31 @@ export default function SelectPlotPage() {
     });
   }
 
+  function selectPoint(next: LatLng) {
+    setPoint(next);
+    setPlot(null);
+    setNeighborhood(undefined);
+    setFocus({ point: next, zoom: 17, nonce: Date.now() });
+    loadPlot(next);
+  }
+
+  // the plot chosen from the address (a new analysis of the same plot) loads once, when the page opens
+  useEffect(() => {
+    if (initial.point) loadPlot(initial.point);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A point outside Riyadh clears the point chosen before, so it cannot be analyzed by mistake.
+  function clearPoint() {
+    lookupId.current++; // answers still on their way are ignored
+    setPoint(null);
+    setPlot(null);
+    setNeighborhood(undefined);
+  }
+
   function handlePick(next: LatLng) {
     if (!isInsideRiyadh(next)) {
+      clearPoint();
       setMessage({ tone: "error", text: c.errOutside });
       return;
     }
@@ -102,6 +147,7 @@ export default function SelectPlotPage() {
           : result.error === "invalid"
             ? c.errInvalid
             : c.errOutside;
+      if (result.error === "outside") clearPoint();
       setMessage({ tone: "error", text });
       return;
     }
@@ -110,8 +156,11 @@ export default function SelectPlotPage() {
   }
 
   
+  // Only a residential plot from the Riyadh parcels layer can be analyzed (a street or another use is refused).
+  const plotProblem = plot && (!plot.outline || !isResidential(plot.landUse)) ? c.errNotResidential : null;
+
   function start() {
-    if (!point || !plot) return;
+    if (!point || !plot || plotProblem) return;
    if (!villaType) {
    setVillaTypeError(c.villaTypeRequired);
    return;
@@ -231,7 +280,10 @@ export default function SelectPlotPage() {
                   label={c.coordinates}
                   value={<bdi dir="ltr">{formatCoordinates(point)}</bdi>}
                 />
-                {plot ? (
+                {plot && plotProblem ? (
+                  // a refused plot (a street or another use): only the reason, no sample area or details
+                  <StatusMessage tone="error">{plotProblem}</StatusMessage>
+                ) : plot ? (
                   <>
                     <Row
                       label={c.area}
@@ -320,7 +372,7 @@ export default function SelectPlotPage() {
 
 
 
-          <Button fullWidth disabled={!point || !plot} onClick={start}>
+          <Button fullWidth disabled={!point || !plot || plotProblem !== null} onClick={start}>
             {c.start}
           </Button>
         </div>

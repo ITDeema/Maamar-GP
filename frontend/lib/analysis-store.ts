@@ -6,7 +6,7 @@ import type { IndicatorsData } from "@/lib/analysis-detail";
 // Row level security makes sure each user only reads and writes their own analyses.
 
 // Raise it when the shape of IndicatorsData changes, so older saved results are calculated again.
-export const RESULTS_VERSION = 1;
+export const RESULTS_VERSION = 2; // 2: the neighbours measured from each side of the plot
 
 type Stored = { version: number; savedAt: string; data: IndicatorsData };
 
@@ -45,8 +45,13 @@ export async function loadSavedResults(projectId: string): Promise<IndicatorsDat
 }
 
 // Saves a COMPLETE analysis. An incomplete one (the backend did not answer) is never saved.
+// renew: the analysis was calculated again for an old project, so its date becomes today (it is no longer old).
 // Resolves to true when saved.
-export async function saveResults(projectId: string, data: IndicatorsData): Promise<boolean> {
+export async function saveResults(
+  projectId: string,
+  data: IndicatorsData,
+  options: { renew?: boolean } = {},
+): Promise<boolean> {
   if (data.complete !== true) return false;
   const supabase = createClient();
   const project = await supabase
@@ -63,7 +68,7 @@ export async function saveResults(projectId: string, data: IndicatorsData): Prom
   // .select() returns the updated rows, so a policy that blocks the update (0 rows) is noticed.
   const { data: updated, error } = await supabase
     .from("Analysis")
-    .update({ results: stored })
+    .update(options.renew ? { results: stored, analysisDate: stored.savedAt } : { results: stored })
     .eq("analysisID", analysisId)
     .select("analysisID");
   if (error || !updated || updated.length === 0) {

@@ -738,6 +738,73 @@ def nearest_buildings(P, buildings) -> dict:
     return out
 
 
+# ------------------------------------------------------------------ neighbours card (per side of the plot)
+
+NEIGHBOUR_RADIUS = 300.0  # m in front of a side
+
+
+def _sides(parcel, d: str) -> list:
+    """The sides of the plot boundary that face direction d, with each side's outward normal (unit)."""
+    p = max(parcel.geoms, key=lambda g: g.area) if parcel.geom_type == "MultiPolygon" else parcel
+    ring = list(orient(p, 1.0).exterior.coords)
+    out = []
+    for (x1, y1), (x2, y2) in zip(ring[:-1], ring[1:]):
+        dx, dy = x2 - x1, y2 - y1
+        length = float(np.hypot(dx, dy))
+        if length < 0.5:
+            continue
+        nx, ny = dy / length, -dx / length  # outward normal
+        if DIRS[_sec(float(np.degrees(np.arctan2(nx, ny)) % 360))] == d:
+            out.append(((x1, y1), (x2, y2), nx, ny))
+    return out
+
+
+def _corridor(a, b, nx, ny, reach: float) -> Polygon:
+    """The area straight in front of a side (perpendicular to it), up to `reach` metres."""
+    return Polygon([a, b, (b[0] + nx * reach, b[1] + ny * reach), (a[0] + nx * reach, a[1] + ny * reach)])
+
+
+def side_distances(parcel, d: str, streets, buildings, reach: float = NEIGHBOUR_RADIUS) -> dict:
+    """From the side of the plot facing d: the distance to the edge of the street in front of it,
+    and to the nearest building in front of it with its height (NaN when there is none)."""
+    out = {"dist_street": np.nan, "dist_bldg": np.nan, "bldg_h": np.nan}
+    st_geom, st_wdet, st_tree = streets
+    g_all, h_all, _, tree = buildings
+    for a, b, nx, ny in _sides(parcel, d):
+        seg = LineString([a, b])
+        corridor = _corridor(a, b, nx, ny, reach)
+        # 1) the street: its centre line inside the corridor; distance to its edge = to the centre line - half the width
+        if st_tree is not None:
+            idx = st_tree.query(corridor, predicate="intersects")
+            if len(idx):
+                part = shapely.intersection(st_geom[idx], corridor)
+                dist = np.clip(shapely.distance(part, seg) - st_wdet[idx] / 2, 0, None)
+                k = int(np.argmin(dist))
+                if np.isnan(out["dist_street"]) or dist[k] < out["dist_street"]:
+                    out["dist_street"] = round(float(dist[k]), 2)
+        # 2) the buildings: any part inside the plot is left out (the plot's own house, or a merged GBA block),
+        #    and the part in front of the side is measured
+        idx = tree.query(corridor, predicate="intersects")
+        if len(idx):
+            part = shapely.intersection(shapely.difference(g_all[idx], parcel), corridor)
+            ok = (shapely.area(part) >= 1.0) & (h_all[idx] > 0)  # under 1 m2 = drawing leftovers, not a building
+            if ok.any():
+                dist = shapely.distance(part[ok], seg)
+                h = h_all[idx][ok]
+                k = int(np.argmin(dist))
+                if np.isnan(out["dist_bldg"]) or dist[k] < out["dist_bldg"]:
+                    out["dist_bldg"], out["bldg_h"] = round(float(dist[k]), 2), round(float(h[k]), 1)
+    return out
+
+
+def street_index(st: pd.DataFrame):
+    """The streets (centre lines and widths) with a spatial index, for side_distances."""
+    if not len(st):
+        return np.array([], dtype=object), np.array([]), None
+    geoms = st["geometry"].to_numpy()
+    return geoms, st["W_DETECT"].to_numpy(float), shapely.STRtree(geoms)
+
+
 # ------------------------------------------------------------------ endpoint
 
 
@@ -754,11 +821,14 @@ def facade_indicators(lat: float, lon: float) -> dict:
     parcel = fetch_parcel(point)
     if parcel is None:
         raise LookupError("No parcel at this point")
-    row = facades_for(parcel, street_table(fetch_streets(parcel)))
+    st = street_table(fetch_streets(parcel))
+    row = facades_for(parcel, st)
     buildings = gba_buildings()
     rad = radiation_for(parcel, row, buildings, epw_seasons())
-    near = nearest_buildings(parcel, buildings)
-    adjoining = [near[f"height_{d}"] for d in DIRS if near[f"height_{d}"] > 0]
+    # the neighbours card: from each side of the plot, straight in front of it
+    streets = street_index(st)
+    sides = {d: side_distances(parcel, d, streets, buildings) for d in DIRS}
+    adjoining = [s["bldg_h"] for s in sides.values() if not np.isnan(s["bldg_h"])]
     try:
         uses = land_use_level1(parcel, *fetch_parcels_around(parcel))
     except (OSError, RuntimeError):  # the land use is optional: without it the rest still loads
@@ -791,8 +861,11 @@ def facade_indicators(lat: float, lon: float) -> dict:
                 "streetWidth": _clean(row[f"street_width_{d}"] if row[f"facade_{d}"] else None),
                 "streetClass": row[f"street_class_{d}"] if row[f"facade_{d}"] else None,
                 "streetName": row[f"street_name_{d}"] if row[f"facade_{d}"] else None,
-                "nearestDistance": near[f"dist_{d}"],  # m from the plot boundary, 300 = none within 300 m
-                "nearestHeight": near[f"height_{d}"],  # m, 0 = none
+                # m from this side of the plot to the edge of the street in front of it (None = no street)
+                "streetDistance": _clean(sides[d]["dist_street"]),
+                # the nearest building straight in front of this side: m from the side (300 = none), height (0 = none)
+                "nearestDistance": NEIGHBOUR_RADIUS if np.isnan(sides[d]["dist_bldg"]) else sides[d]["dist_bldg"],
+                "nearestHeight": 0.0 if np.isnan(sides[d]["bldg_h"]) else sides[d]["bldg_h"],
             },
         }
     return {

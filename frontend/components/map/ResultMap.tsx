@@ -20,6 +20,7 @@ type ResultMapProps = {
   tips: Record<Facade, string>; // hover text per façade
   label: string;
   outline?: LatLng[] | null; // the real plot boundary; when missing, a square from width and depth is drawn
+  shown?: Facade[] | null; // the façades on display (the four longest walls); the others are not drawn (null = all)
 };
 
 const LETTERS: Record<Facade, string> = {
@@ -40,9 +41,9 @@ function plainCursor(event: L.LeafletEvent) {
   element?.style.setProperty("cursor", "default");
 }
 
-// A façade with no wall facing it (null once the values have loaded) is not drawn.
-function hasNoWall(heat: Record<Facade, number | null> | null, facade: Facade): boolean {
-  return heat !== null && heat[facade] === null;
+// A façade that is not on display, or has no wall facing it (null once the values have loaded), is not drawn.
+function hasNoWall(heat: Record<Facade, number | null> | null, facade: Facade, shown: Facade[] | null): boolean {
+  return (shown !== null && !shown.includes(facade)) || (heat !== null && heat[facade] === null);
 }
 
 function colorFor(heat: Record<Facade, number | null> | null, facade: Facade): string {
@@ -79,6 +80,7 @@ function drawOutline(
   heat: Record<Facade, number | null> | null,
   selected: Facade,
   tips: Record<Facade, string>,
+  shown: Facade[] | null,
 ) {
   L.polygon(
     outline.map((p) => [p.lat, p.lng] as L.LatLngTuple),
@@ -92,7 +94,7 @@ function drawOutline(
     const facade = FACADE_OF[edge.facade];
     const isSelected = facade === selected;
     onEdge.add(facade);
-    if (hasNoWall(heat, facade)) continue;
+    if (hasNoWall(heat, facade, shown)) continue;
     L.polyline(
       [
         [edge.from.lat, edge.from.lng],
@@ -114,7 +116,7 @@ function drawOutline(
     if (!old || corner.turn > old.turn) corners.set(facade, corner);
   }
   corners.forEach((corner, facade) => {
-    if (hasNoWall(heat, facade)) return;
+    if (hasNoWall(heat, facade, shown)) return;
     const isSelected = facade === selected;
     L.circleMarker([corner.at.lat, corner.at.lng], {
       radius: isSelected ? 13 : 9,
@@ -137,6 +139,7 @@ function drawOutline(
   const radius =
     Math.max(...outline.map((p) => Math.hypot((p.lng - center.lng) * metersX, (p.lat - center.lat) * 111_320))) + 4;
   FACADES.forEach((facade, i) => {
+    if (shown !== null && !shown.includes(facade)) return; // only the letters of the façades on display
     const angle = (i * 45 * Math.PI) / 180; // clockwise from north
     L.marker(at(center, radius * Math.sin(angle), radius * Math.cos(angle)), {
       interactive: false,
@@ -187,6 +190,7 @@ export default function ResultMap({
   tips,
   label,
   outline,
+  shown = null,
 }: ResultMapProps) {
   const realOutline = outline && outline.length >= 3 ? outline : null;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -234,7 +238,7 @@ export default function ResultMap({
     group.clearLayers();
 
     if (realOutline) {
-      drawOutline(group, realOutline, heat, selected, tips);
+      drawOutline(group, realOutline, heat, selected, tips, shown);
       return;
     }
 
@@ -276,7 +280,7 @@ export default function ResultMap({
     };
     FACADES.forEach((facade) => {
       const isSelected = facade === selected;
-      if (hasNoWall(heat, facade)) return;
+      if (hasNoWall(heat, facade, shown)) return;
       const color = colorFor(heat, facade);
       if (isSide(facade)) {
         L.polyline(sides[facade], {
@@ -291,7 +295,7 @@ export default function ResultMap({
       }
     });
     FACADES.forEach((facade) => {
-      if (isSide(facade) || hasNoWall(heat, facade)) return;
+      if (isSide(facade) || hasNoWall(heat, facade, shown)) return;
       const isSelected = facade === selected;
       L.circleMarker(corners[facade], {
         radius: isSelected ? 13 : 9,
@@ -317,6 +321,7 @@ export default function ResultMap({
       northwest: [-hw - 3, hd + 3],
     };
     FACADES.forEach((facade) => {
+      if (shown !== null && !shown.includes(facade)) return;
       const isSelected = facade === selected;
       const [x, y] = spots[facade];
       L.marker(at(center, x, y), {
@@ -325,7 +330,7 @@ export default function ResultMap({
         icon: letterIcon(facade, isSelected),
       }).addTo(group);
     });
-  }, [lat, lng, width, depth, setbacks, heat, selected, tips, realOutline]);
+  }, [lat, lng, width, depth, setbacks, heat, selected, tips, realOutline, shown]);
 
   return <div ref={containerRef} role="application" aria-label={label} className="h-full w-full" />;
 }

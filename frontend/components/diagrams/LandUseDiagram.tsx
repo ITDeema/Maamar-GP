@@ -9,8 +9,7 @@ import { useStaticMap } from "@/components/diagrams/useStaticMap";
 import { SITE, USE_COLORS } from "@/lib/diagram-palette";
 import { diagramRadius, landOverlay } from "@/lib/diagram-svg";
 import type { Loadable } from "@/lib/loadable";
-import { fill, useResultsCopy } from "@/lib/results-copy";
-import { LAND_RADIUS } from "@/lib/site-surroundings";
+import { useResultsCopy } from "@/lib/results-copy";
 import type { Surroundings } from "@/lib/site-surroundings";
 
 type LandUseDiagramProps = {
@@ -39,42 +38,14 @@ export default function LandUseDiagram({ lat, lng, around, onRetry }: LandUseDia
   }, [lat, lng, size, around, mapRef, layerRef]);
 
   const ready = around.status === "ready" ? around.data : null;
-  const subtitle = ready
-    ? fill(c.diagrams.land.stats, {
-        radius: LAND_RADIUS,
-        buildings: ready.counts.buildings,
-        source: ready.counts.source,
-        places: ready.counts.places,
-      }) + (ready.counts.osm ? "" : c.diagrams.land.osmDown)
-    : undefined;
 
   return (
     <DiagramFrame
       title={c.diagrams.land.title}
-      subtitle={subtitle}
       status={around.status}
       onRetry={onRetry}
       boxRef={boxRef}
-    >
-      <div
-        dir="ltr"
-        className="absolute inset-0 isolate z-0"
-        style={{ clipPath: size.w > 0 ? `circle(${radius + 1}px at 50% 50%)` : undefined }}
-      >
-        <div ref={elRef} className="h-full w-full bg-white!" />
-      </div>
-      <svg
-        viewBox={`0 0 ${size.w || 1} ${size.h || 1}`}
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
-        dangerouslySetInnerHTML={{
-          __html:
-            ready && size.w > 0
-              ? landOverlay(size.w, size.h, c.diagrams.north, c.diagrams.land.selectedSite)
-              : "",
-        }}
-      />
-      {ready && (
+      legend={<>{ready && (
         <LegendBox>
           {ready.presentUses.map((use) => (
             <LegendRow
@@ -98,7 +69,26 @@ export default function LandUseDiagram({ lat, lng, around, onRetry }: LandUseDia
             label={c.diagrams.land.selectedSite}
           />
         </LegendBox>
-      )}
+      )}</>}
+    >
+      <div
+        dir="ltr"
+        className="absolute inset-0 isolate z-0"
+        style={{ clipPath: size.w > 0 ? `circle(${radius + 1}px at 50% 50%)` : undefined }}
+      >
+        <div ref={elRef} className="h-full w-full bg-white!" />
+      </div>
+      <svg
+        viewBox={`0 0 ${size.w || 1} ${size.h || 1}`}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
+        dangerouslySetInnerHTML={{
+          __html:
+            ready && size.w > 0
+              ? landOverlay(size.w, size.h, c.diagrams.north, c.diagrams.land.selectedSite)
+              : "",
+        }}
+      />
     </DiagramFrame>
   );
 }

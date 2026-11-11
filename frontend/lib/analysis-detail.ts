@@ -5,7 +5,9 @@
  */
 
 import { fetchDensity, fetchFacadeIndicators, fetchNoise, fetchWind } from "@/lib/site-api";import type { FacadeNeighbours, NoiseRoadClass, WindDirection } from "@/lib/site-api";
-import { fetchNeighborhood } from "@/lib/analysis";
+import { fetchNeighborhood, lookupPlot } from "@/lib/analysis";
+import type { LatLng } from "@/lib/geo";
+import { plotEdges } from "@/lib/plot-facade";
 // The four sides of the plot. Setbacks are set per side.
 export type Side = "north" | "east" | "south" | "west";
 export const SIDES: Side[] = ["north", "east", "south", "west"];
@@ -60,6 +62,7 @@ export type IndicatorsData = {
   facades: Record<Facade, FacadeIndicators>;
   site: SiteIndicators;
   neighbours: Record<Facade, FacadeNeighbours> | null; // null until the backend answers (the card shows samples)
+  shown?: Facade[] | null; // the façades on display (set by the dashboard for the report, never saved); null = all eight
 };
 
 
@@ -160,8 +163,20 @@ export async function fetchIndicators(
   id: string,
   options: { fail: boolean; signal: AbortSignal; lat?: number; lng?: number },
 ): Promise<IndicatorsData> {
-  await wait(700, options.signal);
-  if (options.fail) throw new Error("Indicators could not be loaded");
+  if (options.fail) {
+    await wait(700, options.signal); // the test failure ("?demo=indicators-error") still takes a moment
+    throw new Error("Indicators could not be loaded");
+  }
+  // All the requests start together (each one was usually started already by the analysis page).
+  const point = options.lat !== undefined && options.lng !== undefined ? { lat: options.lat, lng: options.lng } : null;
+  const windRequest = fetchWind(options.signal);
+  const noiseRequest = point ? fetchNoise(point.lat, point.lng, options.signal) : null;
+  const facadeRequest = point ? fetchFacadeIndicators(point.lat, point.lng, options.signal) : null;
+  const densityRequest = point
+    ? fetchNeighborhood(point, "ar").then((name) => (name ? fetchDensity(name, options.signal) : null))
+    : null;
+  // a request that fails is handled below; this only keeps the browser from reporting it as unhandled
+  [windRequest, noiseRequest, facadeRequest, densityRequest].forEach((r) => r?.catch(() => undefined));
     const data = buildIndicators(id);
     // Do not show the mock density as real population data.
      data.site.density = null;
@@ -173,7 +188,7 @@ export async function fetchIndicators(
   // The wind is real: it comes from our backend (ERA5-Land). If the backend is
   // not running we keep the sample values, and the rest of the dashboard still works.
   try {
-    const wind = await fetchWind(options.signal);
+    const wind = await windRequest;
     data.site.windFrom = WIND_FACADE[wind.dominant];
     data.site.windSpeed = wind.meanSpeed;
     windOk = true;
@@ -183,19 +198,10 @@ export async function fetchIndicators(
   }
   
   // Population density: match the selected plot to its Arabic neighborhood.
-  if (options.lat !== undefined && options.lng !== undefined) {
+  if (densityRequest) {
     try {
-      const neighborhood = await fetchNeighborhood(
-        { lat: options.lat, lng: options.lng },
-        "ar"
-      );
-
-      if (neighborhood) {
-        const result = await fetchDensity(
-          neighborhood,
-          options.signal
-        );
-
+      const result = await densityRequest;
+      if (result) {
         data.site.density = result.density;
         data.site.densityLevel = result.level;
       }
@@ -205,11 +211,10 @@ export async function fetchIndicators(
     }
   }
 
-
   // Road noise level: real, from our backend (the same road measures as the dataset).
-  if (options.lat !== undefined && options.lng !== undefined) {
+  if (noiseRequest) {
     try {
-      const noise = await fetchNoise(options.lat, options.lng, options.signal);
+      const noise = await noiseRequest;
       data.site.noise = noise.level;
       data.site.noiseReason = noise.reason
         ? { roadClass: noise.reason.class, distance: noise.reason.distance }
@@ -224,9 +229,9 @@ export async function fetchIndicators(
   // Radiation, shade, wind shelter and sky view are real: they come from our backend, the same
   // calculation as the dataset (radiation: summer per day; shade: 21 June; wind shelter and sky view: of each wall).
   // If the backend is not running we keep the sample values.
-  if (options.lat !== undefined && options.lng !== undefined) {
+  if (facadeRequest) {
     try {
-      const real = await fetchFacadeIndicators(options.lat, options.lng, options.signal);
+      const real = await facadeRequest;
       facadesOk = true;
       // A value the backend did not send (an older backend file) keeps the sample value.
       const take = (value: number | null | undefined, fallback: number | null) =>
@@ -258,6 +263,37 @@ export async function fetchIndicators(
   }
   data.complete = windOk && facadesOk && noiseOk;
   return data;
+}
+
+// The façades shown on the dashboard: the four directions with the longest walls of the plot,
+// so they follow the plot's real tilt (a chamfer or a small jag never takes a place).
+// In compass order. null (all eight) while the plot outline is unknown.
+export function mainFacades(outline: LatLng[] | null): Facade[] | null {
+  if (!outline || outline.length < 3) return null;
+  const length = new Map<Facade, number>();
+  for (const edge of plotEdges(outline)) {
+    const facade = WIND_FACADE[edge.facade];
+    length.set(facade, (length.get(facade) ?? 0) + edge.length);
+  }
+  if (length.size === 0) return null;
+  const longest = [...length.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([facade]) => facade);
+  return FACADES.filter((facade) => longest.includes(facade));
+}
+
+// Starts every request of the dashboard for a plot, as soon as the user presses "start analysis".
+// The results page then reuses them (see shared-request). Resolves when all of them have finished, failed or not.
+export function prefetchIndicators(lat: number, lng: number): Promise<void> {
+  const requests = [
+    fetchWind(),
+    fetchFacadeIndicators(lat, lng),
+    fetchNoise(lat, lng),
+    fetchNeighborhood({ lat, lng }, "ar").then((name) => (name ? fetchDensity(name) : null)),
+    lookupPlot({ lat, lng }),
+  ];
+  return Promise.allSettled(requests).then(() => undefined);
 }
 
 export function getConstraints(): Constraints {

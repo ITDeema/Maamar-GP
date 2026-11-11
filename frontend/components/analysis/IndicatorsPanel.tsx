@@ -16,7 +16,6 @@ import {
   toneOf,
 } from "@/lib/analysis-detail";
 import type { Facade, IndicatorsData, SiteIndicators } from "@/lib/analysis-detail";
-import { USE_MOCK_DATA } from "@/lib/analysis";
 import { fill, useResultsCopy } from "@/lib/results-copy";
 import type { MetricKey, Level } from "@/lib/analysis-detail";
 import { RADIATION_BADGE, SKY_BADGE, levelFill } from "@/lib/tone-styles";
@@ -53,9 +52,6 @@ export default function IndicatorsPanel({ state, facade, role, onRetry }: Indica
         <h2 className="text-sm font-bold">
           {detailed ? c.indicators.titleDetailed : c.indicators.titleSimple}
         </h2>
-        {USE_MOCK_DATA && state.status === "ready" && (
-          <Badge tone="caution">{c.indicators.sample}</Badge>
-        )}
       </div>
 
       {state.status === "loading" && (

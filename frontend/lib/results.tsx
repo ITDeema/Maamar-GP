@@ -99,6 +99,11 @@ type ResultsContextValue = {
   rename: (id: string, name: string) => void;
   setSaved: (id: string, saved: boolean) => void;
   markOpened: (id: string) => void;
+  // Shows an analysis with another account type from now on (Project.roleAtAnalysis).
+  // Resolves to false when Supabase refused it (the analysis keeps its role).
+  setRole: (id: string, role: Role) => Promise<boolean>;
+  // The analysis was calculated again (and saved), so it is no longer more than 6 months old.
+  markRenewed: (id: string) => void;
   // Saves a finished analysis in the history (it is not a favorite yet).
   // Returns the new result's id. Throws when it could not be saved.
   addResult: (input: NewResult) => Promise<string>;
@@ -196,6 +201,22 @@ export function ResultsProvider({ children }: { children: ReactNode }) {
     [supabase, patch],
   );
 
+  const setRole = useCallback(
+    async (id: string, role: Role) => {
+      const before = latest.current.find((r) => r.id === id);
+      if (!before) return false;
+      patch(id, { role });
+      const { error } = await supabase.from("Project").update({ roleAtAnalysis: role }).eq("projectID", id);
+      if (!error) return true;
+      console.error("Role update error:", error.message);
+      patch(id, { role: before.role });
+      return false;
+    },
+    [supabase, patch],
+  );
+
+  const markRenewed = useCallback((id: string) => patch(id, { stale: false }), [patch]);
+
   const addResult = useCallback(
     async (input: NewResult) => {
       const name = `${input.namePrefix} ${latest.current.length + 1}`; // "Project 1", "Project 2", ...
@@ -226,8 +247,8 @@ export function ResultsProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ results, loaded, loadError, rename, setSaved, addResult, markOpened }),
-    [results, loaded, loadError, rename, setSaved, addResult, markOpened],
+    () => ({ results, loaded, loadError, rename, setSaved, addResult, markOpened, setRole, markRenewed }),
+    [results, loaded, loadError, rename, setSaved, addResult, markOpened, setRole, markRenewed],
   );
 
   return <ResultsContext.Provider value={value}>{children}</ResultsContext.Provider>;

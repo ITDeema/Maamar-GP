@@ -188,10 +188,6 @@ const ar = {
         q: "هل تغني عن المعماري أو موافقات البلدية؟",
         a: "لا. معمار أداة دعم قرار مبكر، والتصميم النهائي والموافقات تبقى مسؤولية المختصين والجهات الرسمية.",
       },
-      {
-        q: "هل التقارير متاحة بالعربي والإنجليزي؟",
-        a: "نعم، تستطيع تصدير نتائجك كملف PDF باللغة التي تختارها.",
-      },
     ],
   },
   cta: {
@@ -398,10 +394,6 @@ const en: LandingCopy = {
       {
         q: "Does it replace an architect or municipal approvals?",
         a: "No. MAAMAR is an early decision-support tool. The final design and approvals remain the responsibility of specialists and official authorities.",
-      },
-      {
-        q: "Are reports available in Arabic and English?",
-        a: "Yes, you can export your results as a PDF in the language you choose.",
       },
     ],
   },

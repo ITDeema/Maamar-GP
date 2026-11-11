@@ -7,6 +7,9 @@ import Button from "@/components/Button";
 import Card from "@/components/Card";
 import { usePlotCopy } from "@/components/analysis/usePlotCopy";
 import { ANALYSIS_STEPS, runAnalysis } from "@/lib/analysis";
+import { prefetchIndicators } from "@/lib/analysis-detail";
+import { useProfileRole } from "@/lib/profile-role";
+import { prefetchDiagrams } from "@/lib/site-surroundings";
 import { useResults } from "@/lib/results";
 
 type Status = "running" | "failed" | "done";
@@ -66,6 +69,12 @@ function AnalyzingContent() {
     : null;
   const valid =
   lat !== null && lng !== null && area !== null && villaType !== null;
+
+  // the architect's diagrams start loading too (only architects see them)
+  const { role } = useProfileRole();
+  useEffect(() => {
+    if (role === "architect" && lat !== null && lng !== null) prefetchDiagrams(lat, lng);
+  }, [role, lat, lng]);
   useEffect(() => {
     if (lat === null || lng === null || area === null || villaType === null) {
       router.replace("/select-plot");
@@ -75,7 +84,9 @@ function AnalyzingContent() {
     const controller = new AbortController();
     let redirect: ReturnType<typeof setTimeout> | undefined;
 
-    runAnalysis({ lat, lng, area, demo }, setStep, controller.signal)
+    // the real calculation starts right away; the results page reuses it
+    const data = prefetchIndicators(lat, lng);
+    runAnalysis({ lat, lng, area, demo, data }, setStep, controller.signal)
       .then(async () => {
         if (controller.signal.aborted) return;
         // the finished analysis is saved in the history (Supabase)

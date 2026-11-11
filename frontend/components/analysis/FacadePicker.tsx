@@ -17,6 +17,7 @@ type FacadePickerProps = {
   value: Facade;
   onChange: (value: Facade) => void;
   names: Record<Facade, string>;
+  options?: Facade[] | null; // the directions offered; the others keep their place but are hidden (null = all)
 };
 
 export default function FacadePicker({
@@ -24,6 +25,7 @@ export default function FacadePicker({
   value,
   onChange,
   names,
+  options,
 }: FacadePickerProps) {
   const name = useId();
 
@@ -36,9 +38,9 @@ export default function FacadePicker({
       {/* Keep compass directions consistent in Arabic and English */}
       <div dir="ltr" className="mx-auto grid max-w-md grid-cols-3 gap-2">
         {GRID.map((facade, index) =>
-          facade === null ? (
+          facade === null || (options && !options.includes(facade)) ? (
             <span
-              key={`empty-${index}`}
+              key={facade ?? `empty-${index}`}
               aria-hidden="true"
               className="invisible"
             />

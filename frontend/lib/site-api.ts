@@ -1,6 +1,8 @@
 // Requests for the analysis diagrams: our backend (sun path, places, buildings)
 // and OpenStreetMap (roads, land use). Set NEXT_PUBLIC_API_URL for a deployed backend.
 
+import { pointKey, shared, waitFor } from "@/lib/shared-request";
+
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
 
 /* ---------- types ---------- */
@@ -17,6 +19,13 @@ export type Wind = {
   meanSpeed: number; // m/s
   calmShare: number; // % of the hours below 0.5 m/s
   hours: number;
+  // the hot wind (summer, June–August) and the cool wind (winter, December–February); older backends do not send it
+  seasons?: Partial<Record<"summer" | "winter", WindSeason>>;
+};
+export type WindSeason = {
+  dominant: WindDirection;
+  frequencies: Record<WindDirection, number>; // % of the windy hours of the season
+  meanSpeed: number; // m/s
 };
 
 export type Poi = { id: string; name: string; lat: number; lon: number; cats: string[] };
@@ -65,8 +74,13 @@ function limited(parent: AbortSignal | undefined, ms: number) {
 /* ---------- our backend ---------- */
 
 // Throws when the sun path cannot be loaded: a sun diagram without the sun would mislead.
-export async function fetchSunPath(lat: number, lng: number, signal?: AbortSignal): Promise<SunPath> {
-  const request = limited(signal, 30_000);
+// Shared: the analysis page starts it, the results page reuses it.
+export function fetchSunPath(lat: number, lng: number, signal?: AbortSignal): Promise<SunPath> {
+  return waitFor(shared(`sun:${pointKey(lat, lng)}`, () => loadSunPath(lat, lng)), signal);
+}
+
+async function loadSunPath(lat: number, lng: number): Promise<SunPath> {
+  const request = limited(undefined, 30_000);
   try {
     const res = await fetch(`${API_URL}/sunpath?latitude=${lat}&longitude=${lng}`, {
       signal: request.signal,
@@ -81,8 +95,13 @@ export async function fetchSunPath(lat: number, lng: number, signal?: AbortSigna
 }
 
 // The wind is the same for every plot (one ERA5-Land point for Riyadh), so no coordinates are sent.
-export async function fetchWind(signal?: AbortSignal): Promise<Wind> {
-  const request = limited(signal, 30_000);
+// Shared: the analysis page starts it, the results page reuses it.
+export function fetchWind(signal?: AbortSignal): Promise<Wind> {
+  return waitFor(shared("wind", loadWind), signal);
+}
+
+async function loadWind(): Promise<Wind> {
+  const request = limited(undefined, 30_000);
   try {
     const res = await fetch(`${API_URL}/wind`, { signal: request.signal });
     if (!res.ok) throw new Error(`Wind request failed (${res.status})`);
@@ -109,7 +128,8 @@ export type FacadeNeighbours = {
   streetWidth: number | null; // m
   streetClass: string | null;
   streetName: string | null;
-  nearestDistance: number; // m from the plot boundary to the nearest building this way; 300 = none within 300 m
+  streetDistance?: number | null; // m from this side of the plot to the edge of the street in front of it (older backends do not send it)
+  nearestDistance: number; // m from this side of the plot to the nearest building straight in front of it; 300 = none within 300 m
   nearestHeight: number; // m, 0 = none
 };
 
@@ -137,12 +157,17 @@ export type FacadeIndicatorsResponse = {
   >;
 };
 
-export async function fetchFacadeIndicators(
+// Shared: the analysis page starts it, the results page reuses it.
+export function fetchFacadeIndicators(
   lat: number,
   lng: number,
   signal?: AbortSignal,
 ): Promise<FacadeIndicatorsResponse> {
-  const request = limited(signal, 60_000);
+  return waitFor(shared(`facade:${pointKey(lat, lng)}`, () => loadFacadeIndicators(lat, lng)), signal);
+}
+
+async function loadFacadeIndicators(lat: number, lng: number): Promise<FacadeIndicatorsResponse> {
+  const request = limited(undefined, 90_000);
   try {
     const res = await fetch(`${API_URL}/facade-indicators?latitude=${lat}&longitude=${lng}`, {
       signal: request.signal,
@@ -181,11 +206,13 @@ export type DensityResponse = {
   level: "L" | "M" | "H";
 };
 
-export async function fetchDensity(
-  neighborhood: string,
-  signal?: AbortSignal,
-): Promise<DensityResponse> {
-  const request = limited(signal, 30_000);
+// Shared: the analysis page starts it, the results page reuses it.
+export function fetchDensity(neighborhood: string, signal?: AbortSignal): Promise<DensityResponse> {
+  return waitFor(shared(`density:${neighborhood}`, () => loadDensity(neighborhood)), signal);
+}
+
+async function loadDensity(neighborhood: string): Promise<DensityResponse> {
+  const request = limited(undefined, 30_000);
 
   try {
     const url =
@@ -314,8 +341,13 @@ export type NoiseResponse = {
   distances: Record<string, number | null>; // m, from the road edge; null = none within 1000 m
 };
 
-export async function fetchNoise(lat: number, lng: number, signal?: AbortSignal): Promise<NoiseResponse> {
-  const request = limited(signal, 60_000);
+// Shared: the analysis page starts it, the results page reuses it.
+export function fetchNoise(lat: number, lng: number, signal?: AbortSignal): Promise<NoiseResponse> {
+  return waitFor(shared(`noise:${pointKey(lat, lng)}`, () => loadNoise(lat, lng)), signal);
+}
+
+async function loadNoise(lat: number, lng: number): Promise<NoiseResponse> {
+  const request = limited(undefined, 60_000);
   try {
     const res = await fetch(`${API_URL}/noise?latitude=${lat}&longitude=${lng}`, { signal: request.signal });
     if (!res.ok) throw new Error(`Noise request failed (${res.status})`);

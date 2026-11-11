@@ -119,7 +119,8 @@ export function neighboursFrom(data: FacadeNeighbours): Neighbour[] | "noWall" {
     distance: hasBuilding ? data.nearestDistance : null,
   };
   if (data.use === "شارع") {
-    const rows: Neighbour[] = [{ kind: "street", height: null, distance: data.streetWidth }];
+    // the street's distance: from this side of the plot to the edge of the street in front of it
+    const rows: Neighbour[] = [{ kind: "street", height: null, distance: data.streetDistance ?? null }];
     if (data.across && data.across !== "لا يوجد") rows.push({ kind: kindOf(data.across), ...building });
     return rows;
   }

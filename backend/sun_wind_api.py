@@ -19,6 +19,9 @@ Notebook rules that are kept on purpose
     * direction the wind comes FROM: (270 - degrees(arctan2(v, u))) % 360, eight 45-degree sectors
     * calm hours (speed < 0.5 m/s) are left out; frequency = share of the remaining hours, in percent
     * meanSpeed is an addition for the website (mean over all hours); the notebook does not use it
+    * seasons is an addition for the sun and wind diagram: the same calculation on the summer months
+      (June-August, the hot wind) and on the winter months (December-February, the cool wind).
+      The ERA5 file has no temperature, so hot and cool follow the season.
 """
 
 from __future__ import annotations
@@ -71,6 +74,7 @@ def sun_path(lat: float = DATASET_LAT, lon: float = DATASET_LON) -> dict:
 
 DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 CALM_THRESHOLD = 0.5  # m/s
+SEASON_MONTHS = {"summer": (6, 7, 8), "winter": (12, 1, 2)}  # hot wind, cool wind
 _DEFAULT_CSV = "data/reanalysis-era5-land-timeseries-sfc-wind35kmvbe_.csv"
 
 
@@ -124,7 +128,26 @@ def wind_stats() -> dict:
     if not u_cols or not v_cols:
         raise WindDataError("Could not find the u and v wind columns in the ERA5 file")
 
-    return wind_from_components(era[u_cols[0]].to_numpy(), era[v_cols[0]].to_numpy())
+    u = era[u_cols[0]].to_numpy()
+    v = era[v_cols[0]].to_numpy()
+    stats = wind_from_components(u, v)
+
+    # the hot (summer) and cool (winter) winds for the diagram; left out when the file has no dates
+    time_cols = [c for c in era.columns if "time" in c or "date" in c]
+    if time_cols:
+        months = pd.to_datetime(era[time_cols[0]], errors="coerce").dt.month.to_numpy()
+        seasons = {}
+        for season, wanted in SEASON_MONTHS.items():
+            rows = np.isin(months, wanted)
+            if rows.any():
+                part = wind_from_components(u[rows], v[rows])
+                seasons[season] = {
+                    "dominant": part["dominant"],
+                    "frequencies": part["frequencies"],
+                    "meanSpeed": part["meanSpeed"],
+                }
+        stats["seasons"] = seasons
+    return stats
 
 
 # ------------------------------------------------------------------ routes

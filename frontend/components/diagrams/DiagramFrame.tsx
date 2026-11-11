@@ -12,6 +12,7 @@ type DiagramFrameProps = {
   status: "loading" | "error" | "ready";
   onRetry: () => void;
   boxRef: Ref<HTMLDivElement>; // lets the diagram measure the box
+  legend?: ReactNode; // shown under the drawing, so a long legend never covers it
   children: ReactNode;
 };
 
@@ -23,6 +24,7 @@ export default function DiagramFrame({
   status,
   onRetry,
   boxRef,
+  legend,
   children,
 }: DiagramFrameProps) {
   const c = useResultsCopy();
@@ -60,6 +62,8 @@ export default function DiagramFrame({
           </div>
         )}
       </div>
+
+      {legend}
     </Card>
   );
 }

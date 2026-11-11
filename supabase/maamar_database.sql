@@ -262,4 +262,4 @@ alter table public."Project"
 
 -- A user may change only the name, the favorite and the opened time of a project.
 revoke update on public."Project" from authenticated;
-grant update ("projectName", "isFavorited", "lastOpenedAt") on public."Project" to authenticated;
+grant update ("projectName", "isFavorited", "lastOpenedAt", "roleAtAnalysis") on public."Project" to authenticated;
