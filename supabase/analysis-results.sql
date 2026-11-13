@@ -28,4 +28,3 @@ create policy "Owner updates own analysis results"
         and p."userID" = auth.uid()
     )
   );
-ٍ
