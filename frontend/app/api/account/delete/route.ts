@@ -74,8 +74,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const { error: deleteError } =
-      await adminClient.auth.admin.deleteUser(user.id);
+    const { data: updatedProfile, error: deleteError } = await adminClient
+      .from("profiles")
+      .update({
+       deletion_requested_at: new Date().toISOString(),
+     })
+    .eq("userID", user.id)
+    .select("userID")
+    .single();
 
     if (deleteError) {
       console.error("Account deletion failed:", deleteError.message);
@@ -84,6 +90,12 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+    if (!updatedProfile) {
+     return NextResponse.json(
+      { error: "Unable to schedule account deletion" },
+      { status: 500 }
+   );
+ }
 
     return NextResponse.json({ success: true });
   } catch {

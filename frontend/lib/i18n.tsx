@@ -96,8 +96,8 @@ const ar = {
   "profile.logout": "تسجيل الخروج",
   "profile.logoutBody": "هل أنت متأكد من تسجيل الخروج؟",
   "profile.delete": "حذف الحساب",
-  "profile.deleteWarning":
-    "سيتم حذف حسابك وجميع نتائجك المحفوظة وسجل تحليلاتك.",
+ "profile.deleteWarning":
+  "سيتم جدولة حذف حسابك نهائيًا بعد 7 أيام. عند انتهاء المهلة، ستفقد المفضلة وسجل تحليلاتك. إذا سجلت الدخول خلال هذه الفترة، سيتم إلغاء طلب الحذف.",
   "profile.deleteConfirm": "أدخل كلمة المرور لتأكيد الحذف",
 
   "common.save": "حفظ",
@@ -217,7 +217,7 @@ const en: Record<TranslationKey, string> = {
   "profile.logoutBody": "Are you sure you want to log out?",
   "profile.delete": "Delete account",
   "profile.deleteWarning":
-    "Your account, saved results and analysis history will be deleted.",
+  "Your account will be permanently deleted after a 7-day grace period. Once this period ends, your favorites and analysis history will be lost. If you log in during these 7 days, your deletion request will be cancelled.",
   "profile.deleteConfirm": "Enter your password to confirm deletion",
 
   "common.save": "Save",

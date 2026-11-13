@@ -43,12 +43,28 @@ export default function LoginPage() {
    // Get the user's saved language from Supabase
 const { data: profile, error: profileError } = await supabase
   .from("profiles")
-  .select("preferredLanguage")
+  .select("preferredLanguage, deletion_requested_at")
   .eq("userID", authData.user.id)
   .single();
 
+// Cancel pending account deletion when the user logs in.
 if (profileError) {
-  console.error("Failed to load language:", profileError.message);
+  await supabase.auth.signOut();
+  alert("Unable to check account status. Please try again.");
+  return;
+}
+
+if (profile?.deletion_requested_at) {
+  const { data: cancelled, error: cancelError } = await supabase
+    .rpc("cancel_pending_account_deletion");
+
+  if (cancelError || cancelled !== true) {
+    await supabase.auth.signOut();
+    alert("The account deletion grace period has expired.");
+    return;
+  }
+
+  alert("Your account deletion has been cancelled.");
 }
 
 if (
