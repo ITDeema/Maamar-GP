@@ -26,16 +26,23 @@ function RenameForm({
   const { rename } = useResults();
   const [name, setName] = useState(result.name);
   const [submitted, setSubmitted] = useState(false);
+  const [serverError, setServerError] = useState<string | undefined>();
+  const [busy, setBusy] = useState(false);
 
   const trimmed = name.trim();
   const error = trimmed === "" ? t("rename.errorRequired") : undefined;
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitted(true);
-    if (error) return;
-    rename(result.id, trimmed);
-    onClose();
+    setServerError(undefined);
+    if (error || busy) return;
+    if (trimmed === result.name) return onClose();
+    setBusy(true);
+    const outcome = await rename(result.id, trimmed);
+    setBusy(false);
+    if (outcome === "ok") return onClose();
+    setServerError(outcome === "duplicate" ? t("rename.errorDuplicate") : t("rename.errorFailed"));
   }
 
   return (
@@ -45,8 +52,8 @@ function RenameForm({
         autoFocus
         maxLength={MAX_RESULT_NAME_LENGTH}
         value={name}
-        onChange={(e) => setName(e.target.value)}
-        error={submitted ? error : undefined}
+        onChange={(e) => { setName(e.target.value); setServerError(undefined); }}
+        error={submitted ? error ?? serverError : undefined}
       />
       <div className="mt-6 flex gap-3">
         <Button type="submit">{t("common.save")}</Button>
