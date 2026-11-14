@@ -85,7 +85,11 @@ export async function loadSavedResults(projectId: string): Promise<IndicatorsDat
 
 // Saves a COMPLETE analysis. An incomplete one (the backend did not answer) is never saved.
 // Resolves to true when saved.
-export async function saveResults(projectId: string, data: IndicatorsDataoptions: { renew?: boolean } = {};): Promise<boolean> {
+export async function saveResults(
+  projectId: string,
+  data: IndicatorsData,
+  options: { renew?: boolean } = {},
+): Promise<boolean> {
   if (data.complete !== true) return false;
   const supabase = createClient();
   const project = await supabase
