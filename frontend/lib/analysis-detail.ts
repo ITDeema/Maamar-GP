@@ -4,7 +4,11 @@
  * with real requests. The dashboard will not need to change.
  */
 
-import { fetchDensity, fetchFacadeIndicators, fetchNoise, fetchWind } from "@/lib/site-api";import type { FacadeNeighbours, NoiseRoadClass, WindDirection } from "@/lib/site-api";
+import { fetchDensity, fetchFacadeIndicators, fetchNoise, fetchServices, fetchWind } from "@/lib/site-api";
+import type { ServicesResponse } from "@/lib/site-api";
+import { SERVICE_KINDS } from "@/lib/neighbourhood";
+import type { Service } from "@/lib/neighbourhood";
+import type { Design, FacadeNeighbours, NoiseRoadClass, WindDirection } from "@/lib/site-api";
 import { fetchNeighborhood, lookupPlot } from "@/lib/analysis";
 import type { LatLng } from "@/lib/geo";
 import { plotEdges } from "@/lib/plot-facade";
@@ -63,7 +67,19 @@ export type IndicatorsData = {
   site: SiteIndicators;
   neighbours: Record<Facade, FacadeNeighbours> | null; // null until the backend answers (the card shows samples)
   shown?: Facade[] | null; // the façades on display (set by the dashboard for the report, never saved); null = all eight
+  // The nearest services around the plot (saved with the analysis for every role). null when they could not
+  // be loaded: the homeowner's card then loads them on its own and they are added to the saved analysis.
+  services?: Service[] | null;
 };
+
+// The services as the dashboard shows them (one entry per kind, in a fixed order).
+export function serviceList(data: ServicesResponse): Service[] {
+  return SERVICE_KINDS.map((kind) => ({
+    kind,
+    distance: data.services[kind]?.nearest ?? null,
+    count: data.services[kind]?.count ?? 0,
+  }));
+}
 
 
 export type DecisionCode =
@@ -161,7 +177,7 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
 // shows an error only inside the indicators section.
 export async function fetchIndicators(
   id: string,
-  options: { fail: boolean; signal: AbortSignal; lat?: number; lng?: number },
+  options: { fail: boolean; signal: AbortSignal; lat?: number; lng?: number; design?: Design },
 ): Promise<IndicatorsData> {
   if (options.fail) {
     await wait(700, options.signal); // the test failure ("?demo=indicators-error") still takes a moment
@@ -171,12 +187,13 @@ export async function fetchIndicators(
   const point = options.lat !== undefined && options.lng !== undefined ? { lat: options.lat, lng: options.lng } : null;
   const windRequest = fetchWind(options.signal);
   const noiseRequest = point ? fetchNoise(point.lat, point.lng, options.signal) : null;
-  const facadeRequest = point ? fetchFacadeIndicators(point.lat, point.lng, options.signal) : null;
+  const facadeRequest = point ? fetchFacadeIndicators(point.lat, point.lng, options.signal, options.design) : null;
   const densityRequest = point
     ? fetchNeighborhood(point, "ar").then((name) => (name ? fetchDensity(name, options.signal) : null))
     : null;
+  const servicesRequest = point ? fetchServices(point.lat, point.lng, options.signal) : null;
   // a request that fails is handled below; this only keeps the browser from reporting it as unhandled
-  [windRequest, noiseRequest, facadeRequest, densityRequest].forEach((r) => r?.catch(() => undefined));
+  [windRequest, noiseRequest, facadeRequest, densityRequest, servicesRequest].forEach((r) => r?.catch(() => undefined));
     const data = buildIndicators(id);
     // Do not show the mock density as real population data.
      data.site.density = null;
@@ -261,6 +278,17 @@ export async function fetchIndicators(
       console.warn("Facade indicators error:", error);
     }
   }
+  // The nearest services. A failure does not make the analysis incomplete: the card loads them again.
+  data.services = null;
+  if (servicesRequest) {
+    try {
+      data.services = serviceList(await servicesRequest);
+    } catch (error) {
+      if (options.signal.aborted) throw error;
+      console.warn("Services error:", error);
+    }
+  }
+
   data.complete = windOk && facadesOk && noiseOk;
   return data;
 }
@@ -285,12 +313,13 @@ export function mainFacades(outline: LatLng[] | null): Facade[] | null {
 
 // Starts every request of the dashboard for a plot, as soon as the user presses "start analysis".
 // The results page then reuses them (see shared-request). Resolves when all of them have finished, failed or not.
-export function prefetchIndicators(lat: number, lng: number): Promise<void> {
+export function prefetchIndicators(lat: number, lng: number, design: Design = {}): Promise<void> {
   const requests = [
     fetchWind(),
-    fetchFacadeIndicators(lat, lng),
+    fetchFacadeIndicators(lat, lng, undefined, design),
     fetchNoise(lat, lng),
     fetchNeighborhood({ lat, lng }, "ar").then((name) => (name ? fetchDensity(name) : null)),
+    fetchServices(lat, lng),
     lookupPlot({ lat, lng }),
   ];
   return Promise.allSettled(requests).then(() => undefined);

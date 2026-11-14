@@ -10,12 +10,15 @@ import { fetchSunPath, fetchWind } from "@/lib/site-api";
 import type { SunPath, Wind } from "@/lib/site-api";
 import { isEmptySurroundings, loadSurroundings } from "@/lib/site-surroundings";
 import type { Surroundings } from "@/lib/site-surroundings";
+import { loadSavedSurroundings, saveSurroundings } from "@/lib/surroundings-store";
 
 const isAbort = (error: unknown) => error instanceof DOMException && error.name === "AbortError";
 
 // Architects: three plans of the site and its surroundings.
 // The sun path and the surroundings load on their own, so one failing does not hide the others.
-export default function SiteDiagrams({ lat, lng }: { lat: number; lng: number }) {
+// The surroundings (land use and roads) of a saved project come from the database when the plot has them
+// (less than 6 months old, see supabase/plot-surroundings.sql); otherwise they are fetched and saved.
+export default function SiteDiagrams({ lat, lng, projectId }: { lat: number; lng: number; projectId?: string }) {
   const c = useResultsCopy();
   const [sun, setSun] = useState<Loadable<SunPath>>({ status: "loading" });
   const [around, setAround] = useState<Loadable<Surroundings>>({ status: "loading" });
@@ -50,17 +53,29 @@ export default function SiteDiagrams({ lat, lng }: { lat: number; lng: number })
 
   useEffect(() => {
     const controller = new AbortController();
-    loadSurroundings(lat, lng, controller.signal)
-      .then((data) =>
-        setAround(isEmptySurroundings(data) ? { status: "error" } : { status: "ready", data }),
-      )
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        console.warn("Surroundings error:", error);
+    async function load() {
+      const saved = projectId ? await loadSavedSurroundings(projectId) : null;
+      if (controller.signal.aborted) return;
+      if (saved && !isEmptySurroundings(saved)) {
+        setAround({ status: "ready", data: saved });
+        return;
+      }
+      const data = await loadSurroundings(lat, lng, controller.signal);
+      if (controller.signal.aborted) return;
+      if (isEmptySurroundings(data)) {
         setAround({ status: "error" });
-      });
+        return;
+      }
+      setAround({ status: "ready", data });
+      if (projectId) void saveSurroundings(projectId, data); // a failure to save does not affect the diagrams
+    }
+    load().catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+      console.warn("Surroundings error:", error);
+      setAround({ status: "error" });
+    });
     return () => controller.abort();
-  }, [lat, lng, aroundAttempt]);
+  }, [lat, lng, projectId, aroundAttempt]);
 
   function retrySun() {
     setSun({ status: "loading" });

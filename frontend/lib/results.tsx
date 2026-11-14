@@ -20,7 +20,8 @@ export type AnalysisResult = {
   id: string; // the project (projects.projectID)
   villaType?: VillaType;
   name: string; // the title the user can rename
-  area: number; // square meters
+  area: number; // square meters, as the user entered it
+  height: number | null; // the expected building height the user entered (m), null = not given
   lat: number;
   lng: number;
   date: string; // ISO date of the analysis
@@ -35,7 +36,7 @@ export type AnalysisResult = {
 // The history comes from Supabase (the Project table, with its Analysis).
 // Row level security makes sure each user only gets their own projects.
 const HISTORY_SELECT =
-  "projectID, projectName, isFavorited, roleAtAnalysis, lastOpenedAt, projectDate, lat, lng, Analysis(villaType, landArea, analysisDate, status)";
+  "projectID, projectName, isFavorited, roleAtAnalysis, lastOpenedAt, projectDate, lat, lng, Analysis(villaType, landArea, expectedBuildingHeight, analysisDate, status)";
 
 type HistoryRow = {
   projectID: string;
@@ -46,7 +47,7 @@ type HistoryRow = {
   projectDate: string;
   lat: number;
   lng: number;
-  Analysis: { villaType: string; landArea: number; analysisDate: string; status: string } | null;
+  Analysis: { villaType: string; landArea: number; expectedBuildingHeight: number | null; analysisDate: string; status: string } | null;
 };
 
 type Client = ReturnType<typeof createClient>;
@@ -73,6 +74,7 @@ function toResult(row: HistoryRow, now: number): AnalysisResult | null {
     villaType: isVillaType(row.Analysis.villaType) ? row.Analysis.villaType : undefined,
     name: row.projectName,
     area: row.Analysis.landArea,
+    height: row.Analysis.expectedBuildingHeight ?? null,
     lat: row.lat,
     lng: row.lng,
     date: row.projectDate.slice(0, 10),
@@ -99,11 +101,30 @@ async function fetchHistory(supabase: Client): Promise<AnalysisResult[]> {
 
 type NewResult = {
   namePrefix: string;
-  area: number;
+  area: number; // the area the user entered
   lat: number;
   lng: number;
   villaType: VillaType;
+  height: number | null; // the expected building height the user entered (null = not given)
+  // the plot itself, from the Riyadh parcels layer (saved once per plot in "Plot")
+  plot: {
+    outline: { lat: number; lng: number }[] | null; // null when no parcel was found
+    area: number | null;
+    landUse: string | null;
+    neighbourhood: string | null;
+    orientation: string | null;
+  };
 };
+
+// The plot boundary as a GeoJSON Polygon ([longitude, latitude], closed ring). The same plot always
+// gives the same boundary, which is how "Plot" recognises a plot that was analysed before.
+export function boundaryGeoJson(outline: { lat: number; lng: number }[] | null) {
+  if (!outline || outline.length < 3) return null;
+  const ring = outline.map((p) => [Number(p.lng.toFixed(7)), Number(p.lat.toFixed(7))]);
+  const [first, last] = [ring[0], ring[ring.length - 1]];
+  if (first[0] !== last[0] || first[1] !== last[1]) ring.push([...first]);
+  return { type: "Polygon", coordinates: [ring] };
+}
 
 type ResultsContextValue = {
   results: AnalysisResult[];
@@ -231,6 +252,12 @@ export function ResultsProvider({ children }: { children: ReactNode }) {
         p_area: input.area,
         p_villa_type: input.villaType,
         p_name: name,
+        p_height: input.height,
+        p_boundary: boundaryGeoJson(input.plot.outline),
+        p_plot_area: input.plot.outline ? input.plot.area : null,
+        p_zoning: input.plot.landUse,
+        p_neighbourhood: input.plot.neighbourhood,
+        p_orientation: input.plot.orientation,
       });
       if (created.error || typeof created.data !== "string") {
         throw new Error(created.error?.message ?? "The analysis could not be saved");

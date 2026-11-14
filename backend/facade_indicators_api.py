@@ -56,6 +56,7 @@ import numpy as np
 import pandas as pd
 import pvlib
 import shapely
+import shapely.affinity
 from fastapi import APIRouter, HTTPException, Query
 from shapely.geometry import LineString, Point, Polygon
 from shapely.geometry.polygon import orient
@@ -397,7 +398,10 @@ def setback(width, cls, is_main):
     return max(mn, width / 5) if pd.notna(width) and width > 0 else mn
 
 
-def envelope(P, row):
+def envelope(P, row, land_area: float | None = None):
+    """The building the regulations allow: the plot minus the street setbacks, at most COVER_MAX of the
+    land. land_area: the land area the user entered (m2); the coverage is then 75% of it instead of the
+    plot's own area (the footprint never grows past the setbacks)."""
     if P.geom_type == "MultiPolygon":
         P = max(P.geoms, key=lambda g: g.area)
     ring = np.asarray(orient(P, 1.0).exterior.coords)
@@ -420,7 +424,7 @@ def envelope(P, row):
         E = max(E.geoms, key=lambda g: g.area)
     if E.is_empty or E.area < 0.2 * P.area:
         E = P
-    target = COVER_MAX * P.area
+    target = COVER_MAX * (land_area if land_area and land_area > 0 else P.area)
     if E.area > target and nb_edges:
         nb = shapely.union_all(nb_edges)
         lo, hi = 0.0, 10.0
@@ -431,6 +435,9 @@ def envelope(P, row):
             lo, hi = (mid, hi) if Em.area > target else (lo, mid)
         Em = E.difference(nb.buffer(hi, cap_style=3))
         E = max(Em.geoms, key=lambda g: g.area) if Em.geom_type == "MultiPolygon" else Em
+    if land_area and E.area > target * 1.01:
+        # still larger (a plot with no neighbour sides, or a much smaller land area): shrink it evenly
+        E = shapely.affinity.scale(E, *(2 * [float(np.sqrt(target / E.area))]), origin="centroid")
     return E
 
 
@@ -513,6 +520,7 @@ def site_mask(parcel, pc, geoms):
 def radiation_for(
     P, row: dict, buildings, seasons: dict,
     sun_hours: pd.DataFrame | None = None, wind_f72: np.ndarray | None = None,
+    height: float | None = None, land_area: float | None = None,
 ) -> dict:
     """Notebook row_3d: Rad_<season>_<dir> (kWh/m2 per season), Rad_block_<season>_<dir>,
     Shaded_Pct_<season>_<dir> (share of the sunlit-facing wall points in the neighbours' shade),
@@ -527,7 +535,11 @@ def radiation_for(
 
     hr = HRAW_ALL[idx][site] if len(idx) else np.zeros(0)
     hr = hr[~np.isnan(hr)] if len(hr) else hr
-    if site.any() and len(hr):
+    if height or land_area:
+        # the user's design (website): the house the user plans, with the land area and height they
+        # entered, even when a building already stands on the plot (it is not used as an obstacle either)
+        E, Hb, source = envelope(P, row, land_area), float(height or H_DESIGN), "user_design"
+    elif site.any() and len(hr):
         E = shapely.union_all(g[site]).intersection(P.buffer(1.0))
         if E.geom_type == "MultiPolygon":
             E = max(E.geoms, key=lambda q: q.area)
@@ -812,7 +824,9 @@ def _clean(value):
     return None if value is None or (isinstance(value, float) and np.isnan(value)) else value
 
 
-def facade_indicators(lat: float, lon: float) -> dict:
+def facade_indicators(lat: float, lon: float, height: float | None = None, area: float | None = None) -> dict:
+    """height, area: the expected building height (m) and land area (m2) the user entered. When given, the
+    building is the user's design; without them, the dataset's rule (existing building or the envelope)."""
     from pyproj import Transformer
 
     to_m = Transformer.from_crs(4326, METRIC_SR, always_xy=True)
@@ -824,7 +838,7 @@ def facade_indicators(lat: float, lon: float) -> dict:
     st = street_table(fetch_streets(parcel))
     row = facades_for(parcel, st)
     buildings = gba_buildings()
-    rad = radiation_for(parcel, row, buildings, epw_seasons())
+    rad = radiation_for(parcel, row, buildings, epw_seasons(), height=height, land_area=area)
     # the neighbours card: from each side of the plot, straight in front of it
     streets = street_index(st)
     sides = {d: side_distances(parcel, d, streets, buildings) for d in DIRS}
@@ -886,9 +900,11 @@ def facade_indicators(lat: float, lon: float) -> dict:
 def get_facade_indicators(
     latitude: float = Query(..., ge=-90, le=90),
     longitude: float = Query(..., ge=-180, le=180),
+    height: float | None = Query(None, gt=0, le=H_DESIGN),  # the user's height (m), at most the allowed 14 m
+    area: float | None = Query(None, gt=0, le=100_000),  # the land area the user entered (m2)
 ):
     try:
-        return facade_indicators(latitude, longitude)
+        return facade_indicators(latitude, longitude, height, area)
     except DataFileError as error:
         raise HTTPException(status_code=503, detail=str(error))
     except LookupError as error:

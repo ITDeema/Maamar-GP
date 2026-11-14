@@ -1,54 +1,65 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import { DensityGauge, NoiseGauge } from "@/components/analysis/SiteGauges";
 import StatusMessage from "@/components/analysis/StatusMessage";
 import type { SiteIndicators } from "@/lib/analysis-detail";
 import type { Loadable } from "@/lib/loadable";
-import { SERVICE_KINDS } from "@/lib/neighbourhood";
+import { serviceList } from "@/lib/analysis-detail";
 import type { Service } from "@/lib/neighbourhood";
 import { useResultsCopy } from "@/lib/results-copy";
 import { fetchServices } from "@/lib/site-api";
 
 // Homeowners: two gauges (noise, density) and the nearest services.
-// The services load on their own: if they fail, only this list shows an error.
+// The services are saved with the analysis. When they are missing (they could not be loaded then), the card
+// loads them on its own (if they fail, only this list shows an error) and hands them back with onLoaded.
 export default function NeighbourhoodCard({
   site,
   lat,
   lng,
+  services,
   onStatus,
+  onLoaded,
 }: {
   site: SiteIndicators;
   lat: number;
   lng: number;
+  services?: Service[] | null;
   onStatus?: (status: "loading" | "ready" | "error") => void;
+  onLoaded?: (services: Service[]) => void;
 }) {
   const c = useResultsCopy();
-  const [state, setState] = useState<Loadable<Service[]>>({ status: "loading" });
+  const [state, setState] = useState<Loadable<Service[]>>(
+    services ? { status: "ready", data: services } : { status: "loading" },
+  );
+  const haveServices = Boolean(services);
+  // the latest callback, without loading the services again when it changes
+  const loaded = useRef(onLoaded);
+  useEffect(() => {
+    loaded.current = onLoaded;
+  }, [onLoaded]);
   const [attempt, setAttempt] = useState(0);
     useEffect(() => {
     onStatus?.(state.status);
   }, [state.status, onStatus]);
 
   useEffect(() => {
+    if (haveServices) return; // saved with the analysis
     const controller = new AbortController();
     fetchServices(lat, lng, controller.signal)
       .then((data) => {
-        const list = SERVICE_KINDS.map((kind) => ({
-          kind,
-          distance: data.services[kind]?.nearest ?? null,
-          count: data.services[kind]?.count ?? 0,
-        }));
+        const list = serviceList(data);
         setState({ status: "ready", data: list });
+        loaded.current?.(list);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError" && controller.signal.aborted) return;
         setState({ status: "error" });
       });
     return () => controller.abort();
-  }, [lat, lng, attempt]);
+  }, [lat, lng, attempt, haveServices]);
 
   function retry() {
     setState({ status: "loading" });

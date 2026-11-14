@@ -29,7 +29,8 @@ import {
   radiationGradient,
 } from "@/lib/analysis-detail";
 import type { Facade } from "@/lib/analysis-detail";
-import { loadSavedResults, saveResults } from "@/lib/analysis-store";
+import { loadSavedResults, saveResults, saveServices } from "@/lib/analysis-store";
+import type { Service } from "@/lib/neighbourhood";
 import { lookupPlot } from "@/lib/analysis";
 import type { LatLng } from "@/lib/geo";
 import FacadePicker from "@/components/analysis/FacadePicker";
@@ -93,6 +94,8 @@ function ResultsContent() {
   const [outline, setOutline] = useState<LatLng[] | null>(null);
   const resultLat = result?.lat;
   const resultLng = result?.lng;
+  const resultArea = result?.area;
+  const resultHeight = result?.height;
   useEffect(() => {
     if (resultLat === undefined || resultLng === undefined) return;
     let active = true;
@@ -140,6 +143,7 @@ function ResultsContent() {
         signal: controller.signal,
         lat: resultLat,
         lng: resultLng,
+        design: { area: resultArea, height: resultHeight }, // the building is the user's design
       });
       if (controller.signal.aborted) return;
       setIndicators({ status: "ready", data });
@@ -151,7 +155,15 @@ function ResultsContent() {
       setIndicators({ status: "error" });
     });
     return () => controller.abort();
-  }, [id, demo, attempt, resultLat, resultLng, exists]);
+  }, [id, demo, attempt, resultLat, resultLng, resultArea, resultHeight, exists]);
+
+  // The services arrived after the analysis (the card loaded them): they are shown and added to the saved analysis.
+  function servicesLoaded(services: Service[]) {
+    setIndicators((state) =>
+      state.status === "ready" ? { status: "ready", data: { ...state.data, services } } : state,
+    );
+    if (exists && demo === null) void saveServices(id, services);
+  }
 
   function retryIndicators() {
     setIndicators({ status: "loading" });
@@ -273,6 +285,7 @@ const canSave =
           signal: controller.signal,
           lat: result.lat,
           lng: result.lng,
+          design: { area: result.area, height: result.height },
         });
         if (!(await saveResults(result.id, fresh, { renew: true }))) return false;
         setIndicators({ status: "ready", data: fresh });
@@ -389,7 +402,13 @@ const canSave =
 
       {architect && (
         <div className="mt-6">
-          <SiteDiagrams lat={lat} lng={lng} />
+          {/* key: after "Update this project" the project is new again and takes recent surroundings */}
+          <SiteDiagrams
+            key={old ? "old" : "new"}
+            lat={lat}
+            lng={lng}
+            projectId={demo === null ? result.id : undefined}
+          />
         </div>
       )}
       
@@ -440,7 +459,14 @@ const canSave =
 
       {!architect && ready && (
         <div className="mt-5">
-          <NeighbourhoodCard site={ready.site} lat={lat} lng={lng} onStatus={setServicesStatus} />
+          <NeighbourhoodCard
+            site={ready.site}
+            lat={lat}
+            lng={lng}
+            services={ready.services}
+            onStatus={setServicesStatus}
+            onLoaded={servicesLoaded}
+          />
         </div>
       )}
 

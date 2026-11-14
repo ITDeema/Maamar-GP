@@ -98,6 +98,10 @@ export type PlotInfo = {
   landUse: string | null; // the plot's use in the Riyadh parcels layer (ParcelSub), e.g. "سكني"; null when unknown
 };
 
+// The highest building the municipality allows for a villa (m), and the height used when none is entered.
+// The backend uses the same value (facade_indicators_api.H_DESIGN).
+export const MAX_BUILDING_HEIGHT = 14;
+
 // Only residential plots are analyzed. A plot with several uses is accepted when one of them is residential
 // (e.g. "سكني تجاري"), and so is a plot with no use recorded; "متعددة الاستخدام", commercial and the other uses are not.
 export function isResidential(landUse: string | null): boolean {

@@ -11,7 +11,7 @@ import SegmentedControl from "@/components/SegmentedControl";
 import StatusMessage from "@/components/analysis/StatusMessage";
 import { usePlotCopy } from "@/components/analysis/usePlotCopy";
 import type { MapFocus } from "@/components/map/PlotPickerMap";
-import { fetchNeighborhood, isResidential, lookupPlot } from "@/lib/analysis";
+import { MAX_BUILDING_HEIGHT, fetchNeighborhood, isResidential, lookupPlot } from "@/lib/analysis";
 import { useT } from "@/lib/i18n";
 import type { PlotInfo } from "@/lib/analysis";
 import { formatCoordinates, isInsideRiyadh, parseCoordinates } from "@/lib/geo";
@@ -43,6 +43,18 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
       <dd className="font-semibold">{value}</dd>
     </div>
   );
+}
+
+// Only numbers in the area and height fields: Arabic digits become 0-9, the Arabic decimal mark becomes
+// ".", and anything else (letters, spaces, a second decimal mark) is dropped as it is typed.
+function numbersOnly(text: string): string {
+  const latin = text
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/[٫,]/g, ".")
+    .replace(/[^0-9.]/g, "");
+  const dot = latin.indexOf(".");
+  return dot === -1 ? latin : latin.slice(0, dot + 1) + latin.slice(dot + 1).replace(/\./g, "");
 }
 
 // "New analysis" from a result opens this page with the same plot already chosen:
@@ -90,6 +102,7 @@ function SelectPlotContent() {
   const [expectedHeight, setExpectedHeight] = useState("");
   const lookupId = useRef(0);
   const [optionalError, setOptionalError] = useState("");
+
 
 
   // the plot and the neighborhood load in parallel; each shows as soon as it arrives
@@ -159,8 +172,20 @@ function SelectPlotContent() {
   // Only a residential plot from the Riyadh parcels layer can be analyzed (a street or another use is refused).
   const plotProblem = plot && (!plot.outline || !isResidential(plot.landUse)) ? c.errNotResidential : null;
 
+  // The municipality's limits, checked as the user types: the height cannot pass the allowed maximum,
+  // and the area cannot be larger than the plot itself (its area from the parcels layer).
+  const plotArea = plot?.outline ? plot.area : null;
+  const heightError =
+    expectedHeight !== "" && Number(expectedHeight) > MAX_BUILDING_HEIGHT
+      ? c.errHeightMax.replace("{max}", String(MAX_BUILDING_HEIGHT))
+      : "";
+  const areaError =
+    optionalArea !== "" && plotArea !== null && Number(optionalArea) > plotArea
+      ? c.errAreaMax.replace("{max}", plotArea.toLocaleString())
+      : "";
+
   function start() {
-    if (!point || !plot || plotProblem) return;
+    if (!point || !plot || plotProblem || heightError || areaError) return;
    if (!villaType) {
    setVillaTypeError(c.villaTypeRequired);
    return;
@@ -349,7 +374,8 @@ function SelectPlotContent() {
               inputMode="decimal"
               placeholder="450"
               value={optionalArea}
-              onChange={(e) => setOptionalArea(e.target.value)}
+              onChange={(e) => setOptionalArea(numbersOnly(e.target.value))}
+              error={areaError || undefined}
             />
 
             <Input
@@ -358,7 +384,8 @@ function SelectPlotContent() {
               inputMode="decimal"
               placeholder="12"
               value={expectedHeight}
-              onChange={(e) => setExpectedHeight(e.target.value)}
+              onChange={(e) => setExpectedHeight(numbersOnly(e.target.value))}
+              error={heightError || undefined}
             />
             
             {optionalError && (
@@ -372,7 +399,7 @@ function SelectPlotContent() {
 
 
 
-          <Button fullWidth disabled={!point || !plot || plotProblem !== null} onClick={start}>
+          <Button fullWidth disabled={!point || !plot || plotProblem !== null || heightError !== "" || areaError !== ""} onClick={start}>
             {c.start}
           </Button>
         </div>

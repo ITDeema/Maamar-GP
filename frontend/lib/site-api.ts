@@ -157,19 +157,28 @@ export type FacadeIndicatorsResponse = {
   >;
 };
 
-// Shared: the analysis page starts it, the results page reuses it.
+// The user's design: the land area (m2) and expected building height (m) they entered.
+// The building is calculated from them (null = not given).
+export type Design = { area?: number | null; height?: number | null };
+
+// Shared: the analysis page starts it, the results page reuses it (the same plot and the same design).
 export function fetchFacadeIndicators(
   lat: number,
   lng: number,
   signal?: AbortSignal,
+  design: Design = {},
 ): Promise<FacadeIndicatorsResponse> {
-  return waitFor(shared(`facade:${pointKey(lat, lng)}`, () => loadFacadeIndicators(lat, lng)), signal);
+  const key = `facade:${pointKey(lat, lng)}:${design.area ?? ""}:${design.height ?? ""}`;
+  return waitFor(shared(key, () => loadFacadeIndicators(lat, lng, design)), signal);
 }
 
-async function loadFacadeIndicators(lat: number, lng: number): Promise<FacadeIndicatorsResponse> {
+async function loadFacadeIndicators(lat: number, lng: number, design: Design): Promise<FacadeIndicatorsResponse> {
   const request = limited(undefined, 90_000);
+  const query = new URLSearchParams({ latitude: String(lat), longitude: String(lng) });
+  if (design.area) query.set("area", String(design.area));
+  if (design.height) query.set("height", String(design.height));
   try {
-    const res = await fetch(`${API_URL}/facade-indicators?latitude=${lat}&longitude=${lng}`, {
+    const res = await fetch(`${API_URL}/facade-indicators?${query}`, {
       signal: request.signal,
     });
     if (!res.ok) throw new Error(`Facade indicators request failed (${res.status})`);
@@ -183,8 +192,13 @@ async function loadFacadeIndicators(lat: number, lng: number): Promise<FacadeInd
 
 // Nearest services (mosque, school...) from our backend, same calculation as the dataset.
 // Throws on failure so the card can show its own error and a retry button.
-export async function fetchServices(lat: number, lng: number, signal?: AbortSignal): Promise<ServicesResponse> {
-  const request = limited(signal, 30_000);
+// Shared: the analysis page starts it, the results page reuses it.
+export function fetchServices(lat: number, lng: number, signal?: AbortSignal): Promise<ServicesResponse> {
+  return waitFor(shared(`services:${pointKey(lat, lng)}`, () => loadServices(lat, lng)), signal);
+}
+
+async function loadServices(lat: number, lng: number): Promise<ServicesResponse> {
+  const request = limited(undefined, 30_000);
   try {
     const res = await fetch(`${API_URL}/services?latitude=${lat}&longitude=${lng}`, {
       signal: request.signal,

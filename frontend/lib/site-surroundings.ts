@@ -237,9 +237,10 @@ const toPts = (geometry: { lat: number; lon: number }[]): LatLngTuple[] =>
 
 // Starts the architect's diagrams (sun path and surroundings) as soon as the user presses "start analysis".
 // The analysis does not wait for them (the map servers can be slow); the results page reuses them.
-export function prefetchDiagrams(lat: number, lng: number): void {
+// `surroundings: false` when the plot already has saved surroundings (less than 6 months old).
+export function prefetchDiagrams(lat: number, lng: number, options: { surroundings?: boolean } = {}): void {
   fetchSunPath(lat, lng).catch(() => undefined);
-  loadSurroundings(lat, lng).catch(() => undefined);
+  if (options.surroundings !== false) loadSurroundings(lat, lng).catch(() => undefined);
 }
 
 // Loads roads, buildings, land use and transit stops around the site.

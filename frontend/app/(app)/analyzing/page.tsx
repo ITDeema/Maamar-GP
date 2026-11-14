@@ -6,11 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/Button";
 import Card from "@/components/Card";
 import { usePlotCopy } from "@/components/analysis/usePlotCopy";
-import { ANALYSIS_STEPS, runAnalysis } from "@/lib/analysis";
+import { ANALYSIS_STEPS, fetchNeighborhood, isResidential, lookupPlot, runAnalysis } from "@/lib/analysis";
 import { prefetchIndicators } from "@/lib/analysis-detail";
+import { hasReusableAnalysis } from "@/lib/analysis-store";
+import { hasRecentSurroundings } from "@/lib/surroundings-store";
 import { useProfileRole } from "@/lib/profile-role";
 import { prefetchDiagrams } from "@/lib/site-surroundings";
-import { useResults } from "@/lib/results";
+import { boundaryGeoJson, useResults } from "@/lib/results";
 
 type Status = "running" | "failed" | "done";
 
@@ -58,6 +60,7 @@ function AnalyzingContent() {
   const lat = readNumber(params.get("lat"));
   const lng = readNumber(params.get("lng"));
   const area = readNumber(params.get("area"));
+  const height = readNumber(params.get("height")); // optional
   const demo = params.get("demo");
   const villaTypeParam = params.get("villaType");
 
@@ -70,10 +73,21 @@ function AnalyzingContent() {
   const valid =
   lat !== null && lng !== null && area !== null && villaType !== null;
 
-  // the architect's diagrams start loading too (only architects see them)
+  // the architect's diagrams start loading too (only architects see them). The surroundings are not fetched
+  // when the plot already has saved ones less than 6 months old (the results page reads those).
   const { role } = useProfileRole();
   useEffect(() => {
-    if (role === "architect" && lat !== null && lng !== null) prefetchDiagrams(lat, lng);
+    if (role !== "architect" || lat === null || lng === null) return;
+    let active = true;
+    lookupPlot({ lat, lng })
+      .then((plot) => hasRecentSurroundings(boundaryGeoJson(plot.outline)))
+      .catch(() => false)
+      .then((recent) => {
+        if (active) prefetchDiagrams(lat, lng, { surroundings: !recent });
+      });
+    return () => {
+      active = false;
+    };
   }, [role, lat, lng]);
   useEffect(() => {
     if (lat === null || lng === null || area === null || villaType === null) {
@@ -84,11 +98,22 @@ function AnalyzingContent() {
     const controller = new AbortController();
     let redirect: ReturnType<typeof setTimeout> | undefined;
 
-    // the real calculation starts right away; the results page reuses it
-    const data = prefetchIndicators(lat, lng);
+    // The same plot, villa type, area and height analysed less than 6 months ago (by anyone) is not
+    // calculated again: the saved analysis opens. Otherwise the real calculation starts right away
+    // (the results page reuses it). The building is the user's design (their area and height).
+    const data = lookupPlot({ lat, lng })
+      .then((plot) => hasReusableAnalysis({ boundary: boundaryGeoJson(plot.outline), villaType, area, height }))
+      .catch(() => false)
+      .then((reuse) => (reuse ? undefined : prefetchIndicators(lat, lng, { area, height })));
     runAnalysis({ lat, lng, area, demo, data }, setStep, controller.signal)
       .then(async () => {
         if (controller.signal.aborted) return;
+        // the plot's own facts (already looked up by the plot page, so these come from the cache)
+        const point = { lat, lng };
+        const [plot, neighbourhood] = await Promise.all([lookupPlot(point), fetchNeighborhood(point, "ar")]);
+        if (controller.signal.aborted) return;
+        // only a residential plot is saved (the plot page checks it too; this covers a typed address)
+        if (!plot.outline || !isResidential(plot.landUse)) throw new Error("Not a residential plot");
         // the finished analysis is saved in the history (Supabase)
         const id = await addResult({
           namePrefix: c.defaultName,
@@ -96,6 +121,14 @@ function AnalyzingContent() {
           lat,
           lng,
           villaType,
+          height,
+          plot: {
+            outline: plot.outline,
+            area: plot.outline ? plot.area : null,
+            landUse: plot.landUse,
+            neighbourhood,
+            orientation: plot.orientation,
+          },
         });
         if (controller.signal.aborted) return;
         setStatus("done");
@@ -110,7 +143,7 @@ function AnalyzingContent() {
       controller.abort();
       clearTimeout(redirect);
     };
-  }, [attempt, lat, lng, area, demo, villaType, router, addResult, c.defaultName]);
+  }, [attempt, lat, lng, area, height, demo, villaType, router, addResult, c.defaultName]);
 
   function retry() {
     setStatus("running");
