@@ -118,6 +118,7 @@ function ResultsContent() {
   const [exportOpen, setExportOpen] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [servicesStatus, setServicesStatus] = useState<"loading" | "ready" | "error">("loading");
  
 
   // The indicators load on their own, so a failure only affects their section.
@@ -219,7 +220,8 @@ function ResultsContent() {
     );
   }
 
- const canSave = result.saved || (ready !== null && result.complete);
+const canSave =
+  result.saved || (ready !== null && ready.complete === true && (architect || servicesStatus === "ready") && result.complete);
 
   async function handleSave() {
     if (!result || !canSave) return;
@@ -438,7 +440,7 @@ function ResultsContent() {
 
       {!architect && ready && (
         <div className="mt-5">
-          <NeighbourhoodCard site={ready.site} lat={lat} lng={lng} />
+          <NeighbourhoodCard site={ready.site} lat={lat} lng={lng} onStatus={setServicesStatus} />
         </div>
       )}
 
