@@ -116,7 +116,8 @@ const ar = {
   "rename.title": "إعادة تسمية النتيجة",
   "rename.label": "اسم النتيجة",
   "rename.errorRequired": "أدخل اسمًا للنتيجة",
-
+  "rename.errorDuplicate": "يوجد مشروع آخر بنفس الاسم، اختر اسمًا مختلفًا",
+  "rename.errorFailed": "تعذر حفظ الاسم، حاول مرة أخرى",
   
  "saved.title": "المفضلات",
  "saved.subtitle": "النتائج التي أضفتها إلى المفضلات للرجوع إليها لاحقًا",
@@ -236,7 +237,8 @@ const en: Record<TranslationKey, string> = {
   "rename.title": "Rename result",
   "rename.label": "Result name",
   "rename.errorRequired": "Enter a name for the result",
-
+  "rename.errorDuplicate": "Another project already has this name, choose a different one",
+  "rename.errorFailed": "The name could not be saved, try again",
   
  "saved.title": "Favorites",
  "saved.subtitle": "Results you added to your favorites",
