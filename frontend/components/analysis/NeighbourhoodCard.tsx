@@ -18,14 +18,19 @@ export default function NeighbourhoodCard({
   site,
   lat,
   lng,
+  onStatus,
 }: {
   site: SiteIndicators;
   lat: number;
   lng: number;
+  onStatus?: (status: "loading" | "ready" | "error") => void;
 }) {
   const c = useResultsCopy();
   const [state, setState] = useState<Loadable<Service[]>>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
+    useEffect(() => {
+    onStatus?.(state.status);
+  }, [state.status, onStatus]);
 
   useEffect(() => {
     const controller = new AbortController();
