@@ -29,12 +29,13 @@ export type AnalysisResult = {
   role: Role; // the user's role when the analysis was made
   stale: boolean; // more than 6 months old when the history was loaded
   lastOpenedAt?: string;
+  complete: boolean; // the analysis complete; only these can be favorites 
 };
 
 // The history comes from Supabase (the Project table, with its Analysis).
 // Row level security makes sure each user only gets their own projects.
 const HISTORY_SELECT =
-  "projectID, projectName, isFavorited, roleAtAnalysis, lastOpenedAt, projectDate, lat, lng, Analysis(villaType, landArea, analysisDate)";
+  "projectID, projectName, isFavorited, roleAtAnalysis, lastOpenedAt, projectDate, lat, lng, Analysis(villaType, landArea, analysisDate, status)";
 
 type HistoryRow = {
   projectID: string;
@@ -45,10 +46,21 @@ type HistoryRow = {
   projectDate: string;
   lat: number;
   lng: number;
-  Analysis: { villaType: string; landArea: number; analysisDate: string } | null;
+  Analysis: { villaType: string; landArea: number; analysisDate: string; status: string } | null;
 };
 
 type Client = ReturnType<typeof createClient>;
+
+export function sameName(a: string, b: string): boolean {
+  const clean = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  return clean(a) === clean(b);
+}
+
+export function uniqueName(prefix: string, start: number, taken: string[]): string {
+  let n = start;
+  while (taken.some((name) => sameName(name, `${prefix} ${n}`))) n += 1;
+  return `${prefix} ${n}`;
+}
 
 function isVillaType(value: string): value is VillaType {
   return value === "attachedBoth" || value === "attachedOne" || value === "detached";
@@ -69,6 +81,7 @@ function toResult(row: HistoryRow, now: number): AnalysisResult | null {
     role: row.roleAtAnalysis === "architect" ? "architect" : "homeowner",
     stale: isStale(row.Analysis.analysisDate, now), // the age of the analysis itself
     lastOpenedAt: row.lastOpenedAt ?? undefined,
+    complete: row.Analysis.status === "completed",
   };
 }
 
@@ -96,8 +109,8 @@ type ResultsContextValue = {
   results: AnalysisResult[];
   loaded: boolean; // false until the history has been read from Supabase
   loadError: boolean; // true when the history could not be read
-  rename: (id: string, name: string) => void;
-  setSaved: (id: string, saved: boolean) => void;
+  rename: (id: string, name: string) => Promise<"ok" | "duplicate" | "error">;
+  setSaved: (id: string, saved: boolean) => Promise<boolean>;
   markOpened: (id: string) => void;
   // Shows an analysis with another account type from now on (Project.roleAtAnalysis).
   // Resolves to false when Supabase refused it (the analysis keeps its role).
@@ -150,40 +163,32 @@ export function ResultsProvider({ children }: { children: ReactNode }) {
   }, [supabase, commit]);
 
   const rename = useCallback(
-    (id: string, name: string) => {
-      const before = latest.current.find((r) => r.id === id);
-      if (!before) return;
-      patch(id, { name });
-      supabase
-        .from("Project")
-        .update({ projectName: name })
-        .eq("projectID", id)
-        .then(({ error }) => {
-          if (!error) return;
-          console.error("Rename error:", error.message);
-          patch(id, { name: before.name });
-        });
-    },
-    [supabase, patch],
-  );
+  async (id: string, name: string) => {
+    const before = latest.current.find((r) => r.id === id);
+    if (!before) return "error" as const;
+    if (latest.current.some((r) => r.id !== id && sameName(r.name, name))) return "duplicate" as const;
+    patch(id, { name });
+    const { error } = await supabase.from("Project").update({ projectName: name }).eq("projectID", id);
+    if (!error) return "ok" as const;
+    patch(id, { name: before.name });
+    return error.code === "23505" ? ("duplicate" as const) : ("error" as const);
+  },
+  [supabase, patch],
+);
 
   const setSaved = useCallback(
-    (id: string, saved: boolean) => {
-      const before = latest.current.find((r) => r.id === id);
-      if (!before) return;
-      patch(id, { saved });
-      supabase
-        .from("Project")
-        .update({ isFavorited: saved })
-        .eq("projectID", id)
-        .then(({ error }) => {
-          if (!error) return;
-          console.error("Favorite error:", error.message);
-          patch(id, { saved: before.saved });
-        });
-    },
-    [supabase, patch],
-  );
+  async (id: string, saved: boolean) => {
+    const before = latest.current.find((r) => r.id === id);
+    if (!before) return false;
+    if (saved && !before.complete) return false; // an unfinished analysis cannot be a favorite
+    patch(id, { saved });
+    const { error } = await supabase.from("Project").update({ isFavorited: saved }).eq("projectID", id);
+    if (!error) return true;
+    patch(id, { saved: before.saved });
+    return false;
+  },
+  [supabase, patch],
+);
 
   const markOpened = useCallback(
     (id: string) => {
@@ -219,7 +224,7 @@ export function ResultsProvider({ children }: { children: ReactNode }) {
 
   const addResult = useCallback(
     async (input: NewResult) => {
-      const name = `${input.namePrefix} ${latest.current.length + 1}`; // "Project 1", "Project 2", ...
+      const name = uniqueName(input.namePrefix, latest.current.length + 1, latest.current.map((r) => r.name));
       const created = await supabase.rpc("create_analysis", {
         p_lat: input.lat,
         p_lng: input.lng,
