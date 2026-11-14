@@ -116,6 +116,8 @@ function ResultsContent() {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
  
 
   // The indicators load on their own, so a failure only affects their section.
@@ -217,15 +219,25 @@ function ResultsContent() {
     );
   }
 
-  function handleSave() {
-    if (!result) return;
-    setSaved(result.id, !result.saved);
-  }
+ const canSave = result.saved || (ready !== null && result.complete);
 
-  function commitName() {
+  async function handleSave() {
+    if (!result || !canSave) return;
+    setNotice(null);
+    if (!(await setSaved(result.id, !result.saved))) setNotice(c.actions.saveFailed);
+  }
+  
+  async function commitName() {
     const name = draft.trim();
-    if (result && name && name !== result.name) rename(result.id, name);
-    setEditing(false);
+    if (!result || !name || name === result.name) return setEditing(false);
+    const outcome = await rename(result.id, name);
+    if (outcome === "ok") {
+      setNameError(null);
+      setEditing(false);
+    } else {
+      setNameError(t(outcome === "duplicate" ? "rename.errorDuplicate" : "rename.errorFailed"));
+      setEditing(true);
+    }
   }
 
   // null blocks the export until the analysis data is complete
@@ -291,11 +303,11 @@ function ResultsContent() {
                 value={draft}
                 maxLength={MAX_RESULT_NAME_LENGTH}
                 aria-label={c.actions.rename}
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={commitName}
+                onChange={(e) => { setDraft(e.target.value); setNameError(null); }}
+               onBlur={() => { if (!nameError) void commitName(); }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") commitName();
-                  if (e.key === "Escape") setEditing(false);
+                  if (e.key === "Enter") void commitName();
+                  if (e.key === "Escape") { setNameError(null); setEditing(false); }
                 }}
                 className="rounded-control border border-navy-900/15 px-2 font-heading text-2xl font-bold"
               />
@@ -312,6 +324,10 @@ function ResultsContent() {
               </h1>
             )}
           </div>
+
+          {nameError && <p role="alert" className="mt-1 text-sm text-danger-500">{nameError}</p>}
+          {notice && <p role="alert" className="mt-1 text-sm text-danger-500">{notice}</p>}
+          
           <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-navy-900/70">
             <span>
               {c.header.area}:{" "}
@@ -336,11 +352,13 @@ function ResultsContent() {
         
           <div className="flex flex-wrap gap-3">
            <Button
-             variant="secondary"
-    onClick={handleSave}
-    aria-pressed={result.saved}
-    className="inline-flex items-center gap-2"
-             >
+            variant="secondary"
+            onClick={handleSave}
+            disabled={!canSave}                                       
+            title={!canSave ? c.actions.saveWait : undefined}  
+            aria-pressed={result.saved}
+            className="inline-flex items-center gap-2"
+                     >
              <BookmarkIcon filled={result.saved} />
               {result.saved ? c.actions.saved : c.actions.save}
             </Button>
