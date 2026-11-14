@@ -85,7 +85,7 @@ export async function loadSavedResults(projectId: string): Promise<IndicatorsDat
 
 // Saves a COMPLETE analysis. An incomplete one (the backend did not answer) is never saved.
 // Resolves to true when saved.
-export async function saveResults(projectId: string, data: IndicatorsData): Promise<boolean> {
+export async function saveResults(projectId: string, data: IndicatorsDataoptions: { renew?: boolean } = {};): Promise<boolean> {
   if (data.complete !== true) return false;
   const supabase = createClient();
   const project = await supabase
@@ -102,7 +102,7 @@ export async function saveResults(projectId: string, data: IndicatorsData): Prom
   // .select() returns the updated rows, so a policy that blocks the update (0 rows) is noticed.
   const { data: updated, error } = await supabase
     .from("Analysis")
-    .update({ results: stored })
+    .update(options.renew ? { results: stored, analysisDate: new Date().toISOString() } : { results: stored })
     .eq("analysisID", analysisId)
     .select("analysisID");
   if (error || !updated || updated.length === 0) {
